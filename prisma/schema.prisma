@@ -1,0 +1,493 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum Color {
+  white
+  black
+}
+
+enum UserRole {
+  anonymous
+  viewer
+  player
+  organizer
+  admin
+}
+
+enum ClaimStatus {
+  pending
+  approved
+  rejected
+}
+
+// ─── Auth.js Models ──────────────────────────────────────
+
+model User {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String?   @db.VarChar(255)
+  email           String    @unique @db.VarChar(255)
+  emailVerified   DateTime? @map("email_verified")
+  image           String?   @db.Text
+  passwordHash    String?   @map("password_hash") @db.VarChar(255)
+  role            UserRole  @default(viewer)
+  claimedPlayerId String?   @unique @map("claimed_player_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  accounts        Account[]
+  sessions        Session[]
+  claimedPlayer   Player?          @relation("ClaimedByUser", fields: [claimedPlayerId], references: [id])
+  playerClaims    PlayerClaim[]
+  bookmarks       UserTournamentBookmark[]
+  followedPlayers FollowedPlayer[]
+  notifications   Notification[]
+  preferences     UserPreference?
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String  @db.VarChar(50)
+  provider          String  @db.VarChar(50)
+  providerAccountId String  @map("provider_account_id") @db.VarChar(255)
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String? @db.VarChar(50)
+  scope             String? @db.Text
+  id_token          String? @db.Text
+  session_state     String? @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique @map("session_token") @db.Text
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String   @db.VarChar(255)
+  token      String   @unique @db.Text
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─── Core Models ─────────────────────────────────────────
+
+model Tournament {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  externalId            String   @unique @map("external_id") @db.VarChar(50)
+  name                  String   @db.VarChar(255)
+  venue                 String?  @db.VarChar(255)
+  city                  String?  @db.VarChar(100)
+  country               String?  @db.VarChar(100)
+  startDate             DateTime @map("start_date")
+  endDate               DateTime @map("end_date")
+  rounds                Int
+  currentRound          Int      @default(0) @map("current_round")
+  timeControl           String?  @map("time_control") @db.VarChar(100)
+  tournamentType        String?  @map("tournament_type") @db.VarChar(50)
+  status                String   @db.VarChar(20)
+  sourceUrl             String   @map("source_url") @db.Text
+  sourceType            String   @default("chess-results") @map("source_type") @db.VarChar(30)
+  lastScrapedAt         DateTime? @map("last_scraped_at")
+  scrapingFrequencyMins Int?     @map("scraping_frequency_mins")
+  metadata              Json?    @db.JsonB
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
+
+  players   TournamentPlayer[]
+  pairings  Pairing[]
+  games     Game[]
+  bookmarks UserTournamentBookmark[]
+  snapshots TournamentSnapshot[]
+  syncLogs  DataSyncLog[]
+
+  @@index([status])
+  @@index([lastScrapedAt])
+  @@index([sourceType])
+  @@map("tournaments")
+}
+
+model Player {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fideId           String?  @unique @map("fide_id") @db.VarChar(20)
+  name             String   @db.VarChar(255)
+  title            String?  @db.VarChar(10)
+  rating           Int?
+  rapidRating      Int?     @map("rapid_rating")
+  blitzRating      Int?     @map("blitz_rating")
+  country          String?  @db.VarChar(3)
+  birthYear        Int?     @map("birth_year")
+  isActive         Boolean  @default(true) @map("is_active")
+  manualOverrides  Json?    @map("manual_overrides") @db.JsonB
+  lastUpdated      DateTime @default(now()) @map("last_updated")
+  metadata         Json?    @db.JsonB
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  tournaments      TournamentPlayer[]
+  whitePairings    Pairing[] @relation("WhitePlayer")
+  blackPairings    Pairing[] @relation("BlackPlayer")
+  whiteGames       Game[] @relation("WhitePlayerGames")
+  blackGames       Game[] @relation("BlackPlayerGames")
+  followedPlayers  FollowedPlayer[]
+  aliases          PlayerAlias[]
+  claims           PlayerClaim[]
+  ratingHistory    RatingHistory[]
+  claimedByUser    User? @relation("ClaimedByUser")
+
+  @@index([name])
+  @@index([rating])
+  @@index([country])
+  @@map("players")
+}
+
+model TournamentPlayer {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId    String   @map("tournament_id") @db.Uuid
+  playerId        String   @map("player_id") @db.Uuid
+  startingRank    Int?     @map("starting_rank")
+  currentRank     Int?     @map("current_rank")
+  startingRating  Int?     @map("starting_rating")
+  currentRating   Int?     @map("current_rating")
+  points          Float    @default(0)
+  gamesPlayed     Int      @default(0) @map("games_played")
+  performance     Int?
+  withdrawn       Boolean  @default(false)
+  metadata        Json?    @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  player     Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, playerId])
+  @@index([currentRank])
+  @@index([points])
+  @@map("tournament_players")
+}
+
+model Pairing {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId   String    @map("tournament_id") @db.Uuid
+  round          Int
+  board          Int
+  whitePlayerId  String?   @map("white_player_id") @db.Uuid
+  blackPlayerId  String?   @map("black_player_id") @db.Uuid
+  result         String?   @db.VarChar(10)
+  whiteElo       Int?      @map("white_elo")
+  blackElo       Int?      @map("black_elo")
+  playedAt       DateTime? @map("played_at")
+  pgn            String?   @db.Text
+  metadata       Json?     @db.JsonB
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  whitePlayer Player?    @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
+  blackPlayer Player?    @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+  game        Game?
+
+  @@unique([tournamentId, round, board])
+  @@index([tournamentId, round])
+  @@map("pairings")
+}
+
+// ─── Game & Move Models ──────────────────────────────────
+
+model Game {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pairingId       String    @unique @map("pairing_id") @db.Uuid
+  tournamentId    String    @map("tournament_id") @db.Uuid
+  whitePlayerId   String    @map("white_player_id") @db.Uuid
+  blackPlayerId   String    @map("black_player_id") @db.Uuid
+  round           Int
+  board           Int
+  result          String?   @db.VarChar(10)
+  pgnHeader       String?   @map("pgn_header") @db.Text
+  pgnMovetext     String?   @map("pgn_movetext") @db.Text
+  ecoCode         String?   @map("eco_code") @db.VarChar(3)
+  openingName     String?   @map("opening_name") @db.VarChar(255)
+  timeControl     String?   @map("time_control") @db.VarChar(100)
+  startTime       DateTime? @map("start_time")
+  endTime         DateTime? @map("end_time")
+  durationSeconds Int?      @map("duration_seconds")
+  termination     String?   @db.VarChar(50)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  pairing     Pairing @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  whitePlayer Player  @relation("WhitePlayerGames", fields: [whitePlayerId], references: [id])
+  blackPlayer Player  @relation("BlackPlayerGames", fields: [blackPlayerId], references: [id])
+  moves       Move[]
+
+  @@unique([tournamentId, round, board])
+  @@index([tournamentId, round])
+  @@index([whitePlayerId, blackPlayerId])
+  @@index([ecoCode])
+  @@index([result])
+  @@map("games")
+}
+
+model Move {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId          String    @map("game_id") @db.Uuid
+  moveNumber      Int       @map("move_number")
+  color           Color
+  ply             Int
+  san             String    @db.VarChar(10)
+  uci             String    @db.VarChar(5)
+  lan             String?   @db.VarChar(7)
+  piece           String?   @db.Char(1)
+  fromSquare      String?   @map("from_square") @db.Char(2)
+  toSquare        String?   @map("to_square") @db.Char(2)
+  promotionPiece  String?   @map("promotion_piece") @db.Char(1)
+  isCapture       Boolean   @default(false) @map("is_capture")
+  isCheck         Boolean   @default(false) @map("is_check")
+  isCheckmate     Boolean   @default(false) @map("is_checkmate")
+  isCastling      Boolean   @default(false) @map("is_castling")
+  isEnPassant     Boolean   @default(false) @map("is_en_passant")
+  clockTimeWhite  Int?      @map("clock_time_white")
+  clockTimeBlack  Int?      @map("clock_time_black")
+  thinkTime       Int?      @map("think_time")
+  moveTimestamp   DateTime? @map("move_timestamp")
+  nagCodes        Int[]     @map("nag_codes")
+  evaluationCp    Int?      @map("evaluation_cp")
+  evaluationMate  Int?      @map("evaluation_mate")
+  engineDepth     Int?      @map("engine_depth")
+  bestMove        String?   @map("best_move") @db.VarChar(5)
+  comment         String?   @db.Text
+  preComment      String?   @map("pre_comment") @db.Text
+  variations      Json?     @db.JsonB
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  game        Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  annotations MoveAnnotation[]
+
+  @@unique([gameId, ply])
+  @@index([gameId])
+  @@index([gameId, ply])
+  @@index([san])
+  @@index([uci])
+  @@index([fromSquare, toSquare])
+  @@index([evaluationCp])
+  @@index([moveTimestamp])
+  @@map("moves")
+}
+
+model MoveAnnotation {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  moveId         String   @map("move_id") @db.Uuid
+  annotationType String   @map("annotation_type") @db.VarChar(50)
+  data           Json     @db.JsonB
+  source         String?  @db.VarChar(100)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  move Move @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+  @@index([moveId])
+  @@index([annotationType])
+  @@map("move_annotations")
+}
+
+// ─── User Feature Models ─────────────────────────────────
+
+model FollowedPlayer {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  playerId       String    @map("player_id") @db.Uuid
+  alias          String?   @db.VarChar(255)
+  notifications  Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, playerId])
+  @@map("followed_players")
+}
+
+model UserTournamentBookmark {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String  @map("user_id") @db.Uuid
+  tournamentId  String  @map("tournament_id") @db.Uuid
+  notifications Boolean @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tournamentId])
+  @@map("user_tournament_bookmarks")
+}
+
+model UserPreference {
+  id                     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String  @unique @map("user_id") @db.Uuid
+  theme                  String  @default("system") @db.VarChar(20)
+  language               String  @default("en") @db.VarChar(10)
+  emailNotifications     Boolean @default(true) @map("email_notifications")
+  pushNotifications      Boolean @default(false) @map("push_notifications")
+  gameResultAlerts       Boolean @default(true) @map("game_result_alerts")
+  roundStartAlerts       Boolean @default(true) @map("round_start_alerts")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model Notification {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  type         String    @db.VarChar(50)
+  title        String    @db.VarChar(255)
+  message      String    @db.Text
+  data         Json?     @db.JsonB
+  read         Boolean   @default(false)
+  readAt       DateTime? @map("read_at")
+  sentAt       DateTime  @default(now()) @map("sent_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([type])
+  @@map("notifications")
+}
+
+// ─── Player Identity Models ──────────────────────────────
+
+model PlayerAlias {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playerId String @map("player_id") @db.Uuid
+  alias    String @db.VarChar(255)
+  source   String @db.VarChar(100)
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, alias])
+  @@index([alias])
+  @@map("player_aliases")
+}
+
+model PlayerClaim {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String      @map("user_id") @db.Uuid
+  playerId         String      @map("player_id") @db.Uuid
+  status           ClaimStatus @default(pending)
+  verificationType String      @map("verification_type") @db.VarChar(50)
+  verificationData Json?       @map("verification_data") @db.JsonB
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @default(now()) @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, playerId])
+  @@map("player_claims")
+}
+
+model RatingHistory {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  playerId   String   @map("player_id") @db.Uuid
+  ratingType String   @map("rating_type") @db.VarChar(20)
+  rating     Int
+  source     String   @db.VarChar(30)
+  recordedAt DateTime @map("recorded_at")
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, ratingType])
+  @@map("rating_history")
+}
+
+// ─── Import & Sync Models ────────────────────────────────
+
+model ImportJob {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceType   String    @map("source_type") @db.VarChar(30)
+  inputData    Json      @map("input_data") @db.JsonB
+  status       String    @db.VarChar(20)
+  userId       String?   @map("user_id") @db.Uuid
+  resultData   Json?     @map("result_data") @db.JsonB
+  error        String?   @db.Text
+  startedAt    DateTime  @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([status])
+  @@map("import_jobs")
+}
+
+model ScrapingJob {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId String   @map("tournament_id") @db.Uuid
+  jobType      String   @map("job_type") @db.VarChar(50)
+  status       String   @db.VarChar(20)
+  startedAt    DateTime @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  error        String?  @db.Text
+  metadata     Json?    @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([tournamentId])
+  @@index([status])
+  @@map("scraping_jobs")
+}
+
+// ─── Data Quality Models ─────────────────────────────────
+
+model TournamentSnapshot {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId String   @map("tournament_id") @db.Uuid
+  round        Int
+  standings    Json     @db.JsonB
+  scrapedAt    DateTime @map("scraped_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, round])
+  @@map("tournament_snapshots")
+}
+
+model DataSyncLog {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId   String    @map("tournament_id") @db.Uuid
+  syncType       String    @map("sync_type") @db.VarChar(30)
+  status         String    @db.VarChar(20)
+  changesSummary Json?     @map("changes_summary") @db.JsonB
+  durationMs     Int?      @map("duration_ms")
+  startedAt      DateTime  @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
+  @@map("data_sync_logs")
+}
