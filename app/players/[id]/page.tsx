@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth-helpers";
 import { PlayerProfile } from "@/components/features/player-profile";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 
 async function getPlayer(id: string) {
   const player = await prisma.player.findUnique({
@@ -126,9 +127,10 @@ async function getClaimStatus(playerId: string): Promise<string | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const player = await getPlayer(params.id);
+  const { id } = await params;
+  const player = await getPlayer(id);
   if (!player) return { title: "Player Not Found" };
 
   const titlePrefix = player.title ? `${player.title} ` : "";
@@ -141,21 +143,33 @@ export async function generateMetadata({
 export default async function PlayerPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const [player, isFollowing, claimStatus] = await Promise.all([
-    getPlayer(params.id),
-    getFollowingStatus(params.id),
-    getClaimStatus(params.id),
+    getPlayer(id),
+    getFollowingStatus(id),
+    getClaimStatus(id),
   ]);
 
   if (!player) notFound();
 
   return (
-    <PlayerProfile
-      player={player}
-      isFollowing={isFollowing}
-      claimStatus={claimStatus}
-    />
+    <>
+      <div className="container px-4 pt-4">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Players", href: "/players" },
+            { label: player.name },
+          ]}
+        />
+      </div>
+      <PlayerProfile
+        player={player}
+        isFollowing={isFollowing}
+        claimStatus={claimStatus}
+      />
+    </>
   );
 }
