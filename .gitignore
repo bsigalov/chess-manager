@@ -27,3 +27,10 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# jira autopilot
+.claude/current-task.json
+.claude/jira-session.json
+.claude/jira-sessions/
+.claude/jira-autopilot.local.json
+.claude/jira-autopilot.declined

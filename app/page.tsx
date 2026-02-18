@@ -1,5 +1,6 @@
 import { TournamentImport } from "@/components/features/tournament-import";
 import { TournamentCard } from "@/components/features/tournament-card";
+import { MyPlayersSection } from "@/components/features/my-players-section";
 import { prisma } from "@/lib/db";
 
 async function getRecentTournaments() {
@@ -42,6 +43,8 @@ export default async function Home() {
         </p>
         <TournamentImport />
       </div>
+
+      <MyPlayersSection />
 
       {/* Recent tournaments */}
       {tournaments.length > 0 && (

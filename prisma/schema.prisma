@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─── Enums ───────────────────────────────────────────────
@@ -118,12 +117,13 @@ model Tournament {
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @default(now()) @updatedAt @map("updated_at")
 
-  players   TournamentPlayer[]
-  pairings  Pairing[]
-  games     Game[]
-  bookmarks UserTournamentBookmark[]
-  snapshots TournamentSnapshot[]
-  syncLogs  DataSyncLog[]
+  players        TournamentPlayer[]
+  pairings       Pairing[]
+  games          Game[]
+  bookmarks      UserTournamentBookmark[]
+  snapshots      TournamentSnapshot[]
+  syncLogs       DataSyncLog[]
+  roundSnapshots RoundSnapshot[]
 
   @@index([status])
   @@index([lastScrapedAt])
@@ -490,4 +490,22 @@ model DataSyncLog {
 
   @@index([tournamentId])
   @@map("data_sync_logs")
+}
+
+// ─── Analytics Models ─────────────────────────────────────
+
+model RoundSnapshot {
+  id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournamentId     String     @map("tournament_id") @db.Uuid
+  playerId         String     @map("player_id") @db.Uuid
+  round            Int
+  pointsAfter      Float      @map("points_after")
+  rankAfter        Int        @map("rank_after")
+  performanceAfter Int?       @map("performance_after")
+
+  tournament       Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, playerId, round])
+  @@index([tournamentId, round])
+  @@map("round_snapshots")
 }

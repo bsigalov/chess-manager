@@ -32,6 +32,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { OpeningStats } from "@/components/features/opening-stats";
+import { TournamentComparisonChart } from "@/components/features/tournament-comparison-chart";
 
 interface TournamentEntry {
   tournamentId: string;
@@ -94,6 +96,7 @@ export function PlayerProfile({
   const { data: session } = useSession();
   const router = useRouter();
   const [claiming, setClaiming] = useState(false);
+  const [showChart, setShowChart] = useState(false);
 
   const titleDisplay = player.title ? `${player.title} ` : "";
 
@@ -211,6 +214,7 @@ export function PlayerProfile({
           <TabsTrigger value="tournaments">
             Tournaments ({totalTournaments})
           </TabsTrigger>
+          <TabsTrigger value="openings">Openings</TabsTrigger>
           <TabsTrigger value="ratings">Rating History</TabsTrigger>
         </TabsList>
 
@@ -372,6 +376,23 @@ export function PlayerProfile({
               No tournament history found.
             </div>
           ) : (
+            <>
+            {player.tournaments.length > 1 && (
+              <div className="mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowChart(!showChart)}
+                >
+                  {showChart ? "Hide Chart" : "Show Comparison Chart"}
+                </Button>
+                {showChart && (
+                  <div className="mt-3">
+                    <TournamentComparisonChart tournaments={player.tournaments} />
+                  </div>
+                )}
+              </div>
+            )}
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -429,7 +450,13 @@ export function PlayerProfile({
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
+        </TabsContent>
+
+        {/* Openings Tab */}
+        <TabsContent value="openings" className="mt-4">
+          <OpeningStats playerId={player.id} />
         </TabsContent>
 
         {/* Rating History Tab */}

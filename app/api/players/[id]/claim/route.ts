@@ -10,9 +10,10 @@ const VALID_VERIFICATION_TYPES = [
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const user = await requireAuth();
 
     const body = await request.json();
@@ -32,7 +33,7 @@ export async function POST(
 
     // Check player exists
     const player = await prisma.player.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!player) {
@@ -45,7 +46,7 @@ export async function POST(
     // Check if player is already claimed by another user
     const existingApprovedClaim = await prisma.playerClaim.findFirst({
       where: {
-        playerId: params.id,
+        playerId: id,
         status: "approved",
         userId: { not: user.id },
       },
@@ -63,7 +64,7 @@ export async function POST(
       where: {
         userId_playerId: {
           userId: user.id,
-          playerId: params.id,
+          playerId: id,
         },
       },
     });
@@ -85,7 +86,7 @@ export async function POST(
     const claim = await prisma.playerClaim.create({
       data: {
         userId: user.id,
-        playerId: params.id,
+        playerId: id,
         verificationType,
         verificationData: verificationData ?? null,
       },
@@ -117,9 +118,10 @@ export async function POST(
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: playerId } = await params;
     const user = await getCurrentUser();
 
     if (!user) {
@@ -130,7 +132,7 @@ export async function GET(
       where: {
         userId_playerId: {
           userId: user.id,
-          playerId: params.id,
+          playerId,
         },
       },
     });

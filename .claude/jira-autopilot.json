@@ -1,0 +1,17 @@
+{
+  "projectKey": "CHESS",
+  "cloudId": "1ee0f71d-3a04-4081-8511-186be2e45a4e",
+  "enabled": true,
+  "autonomyLevel": "C",
+  "accuracy": 8,
+  "debugLog": true,
+  "branchPattern": "^(?:feature|fix|hotfix|chore|docs)/(CHESS-\\d+)",
+  "commitPattern": "CHESS-\\d+:",
+  "timeRounding": 1,
+  "idleThreshold": 5,
+  "autoCreate": false,
+  "defaultLabels": ["jira-autopilot"],
+  "defaultComponent": null,
+  "defaultFixVersion": null,
+  "componentMap": {}
+}

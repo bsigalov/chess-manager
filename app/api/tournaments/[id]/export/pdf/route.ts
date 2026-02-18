@@ -4,11 +4,12 @@ import { exportTournamentReport } from "@/lib/export/pdf-exporter";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const tournament = await prisma.tournament.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true },
     });
 

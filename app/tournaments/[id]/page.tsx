@@ -20,6 +20,7 @@ async function getTournament(id: string) {
 
   const standings = tournament.players
     .map((tp) => ({
+      playerId: tp.player.id,
       rank: tp.currentRank ?? tp.startingRank ?? 0,
       name: tp.player.name,
       title: tp.player.title,
@@ -34,7 +35,9 @@ async function getTournament(id: string) {
     number,
     {
       board: number;
+      whitePlayerId: string | null;
       whiteName: string;
+      blackPlayerId: string | null;
       blackName: string;
       whiteRating: number | null;
       blackRating: number | null;
@@ -45,7 +48,9 @@ async function getTournament(id: string) {
     if (!pairings[p.round]) pairings[p.round] = [];
     pairings[p.round].push({
       board: p.board,
+      whitePlayerId: p.whitePlayer?.id ?? null,
       whiteName: p.whitePlayer?.name ?? "BYE",
+      blackPlayerId: p.blackPlayer?.id ?? null,
       blackName: p.blackPlayer?.name ?? "BYE",
       whiteRating: p.whiteElo ?? p.whitePlayer?.rating ?? null,
       blackRating: p.blackElo ?? p.blackPlayer?.rating ?? null,
@@ -73,9 +78,10 @@ async function getTournament(id: string) {
 export default async function TournamentPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const tournament = await getTournament(params.id);
+  const { id } = await params;
+  const tournament = await getTournament(id);
   if (!tournament) notFound();
 
   return <TournamentDetail tournament={tournament} />;

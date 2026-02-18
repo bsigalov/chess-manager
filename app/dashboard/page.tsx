@@ -179,7 +179,7 @@ export default async function DashboardPage() {
                             <span className="truncate mr-2">
                               {tp.tournament.name}
                             </span>
-                            <span className="text-muted-foreground flex-shrink-0">
+                            <span className="text-muted-foreground shrink-0">
                               {tp.points} pts
                               {tp.currentRank && ` (#${tp.currentRank})`}
                             </span>
@@ -312,7 +312,7 @@ export default async function DashboardPage() {
                           {n.message}
                         </p>
                       </div>
-                      <div className="text-[10px] text-muted-foreground flex-shrink-0 flex items-center gap-1">
+                      <div className="text-[10px] text-muted-foreground shrink-0 flex items-center gap-1">
                         {formatTimeAgo(n.sentAt)}
                         {!n.read && (
                           <span className="h-2 w-2 rounded-full bg-primary" />
