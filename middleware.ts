@@ -1,17 +1,26 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth-config";
 import { NextResponse } from "next/server";
+
+const { auth } = NextAuth(authConfig);
 
 const publicRoutes = [
   "/",
   "/tournaments",
+  "/players",
   "/auth/signin",
   "/auth/register",
 ];
 
 const publicPrefixes = [
   "/tournaments/",
+  "/players/",
   "/auth/",
-  "/api/auth/",
+  "/api/auth",
+  "/api/tournaments",
+  "/api/players",
+  "/api/import",
+  "/api/events",
   "/_next/",
   "/favicon.ico",
 ];

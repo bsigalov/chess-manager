@@ -26,6 +26,7 @@ interface Pairing {
   whiteRating: number | null;
   blackRating: number | null;
   result: string | null;
+  pairingId?: string | null;
 }
 
 interface PairingsViewProps {
@@ -180,7 +181,13 @@ export function PairingsView({
                       {p.whiteRating ?? "—"}
                     </TableCell>
                     <TableCell className={`text-center font-mono text-xs rounded ${resultBgColor(p.result)}`}>
-                      {p.result || "—"}
+                      {tournamentId && p.pairingId ? (
+                        <Link href={`/tournaments/${tournamentId}/games/${p.pairingId}`} className="hover:underline">
+                          {p.result || "—"}
+                        </Link>
+                      ) : (
+                        p.result || "—"
+                      )}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-right tabular-nums text-muted-foreground">
                       {p.blackRating ?? "—"}

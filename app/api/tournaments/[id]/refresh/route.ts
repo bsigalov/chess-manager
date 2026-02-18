@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
+  parseBaseUrl,
   scrapeTournamentInfo,
   scrapePlayerList,
   scrapePairings,
+  scrapeStandings,
+  StandingsEntry,
 } from "@/lib/scrapers/chess-results";
 
 export async function POST(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const tournament = await prisma.tournament.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!tournament) {
@@ -34,7 +38,7 @@ export async function POST(
         "@/lib/data-quality/snapshot-service"
       );
 
-      const syncLogId = await startSyncLog(params.id, "full_scrape");
+      const syncLogId = await startSyncLog(id, "full_scrape");
 
       try {
         const jobId = await createImportJob({
@@ -47,10 +51,10 @@ export async function POST(
         if (job?.status === "completed") {
           // Capture snapshot of current round
           const updated = await prisma.tournament.findUnique({
-            where: { id: params.id },
+            where: { id: id },
           });
           if (updated?.currentRound) {
-            await captureSnapshot(params.id, updated.currentRound).catch(() => {});
+            await captureSnapshot(id, updated.currentRound).catch(() => {});
           }
           await completeSyncLog(syncLogId, job.resultData as Record<string, unknown> ?? {});
           return NextResponse.json({ success: true });
@@ -67,7 +71,7 @@ export async function POST(
       }
     } catch {
       // Fallback to legacy refresh
-      return legacyRefresh(params.id, tournament.externalId);
+      return legacyRefresh(id, tournament.externalId, tournament.sourceUrl);
     }
   } catch (error) {
     console.error("Refresh error:", error);
@@ -78,17 +82,40 @@ export async function POST(
   }
 }
 
-async function legacyRefresh(id: string, externalId: string) {
-  const info = await scrapeTournamentInfo(externalId);
-  const playerList = await scrapePlayerList(externalId);
+async function legacyRefresh(id: string, externalId: string, sourceUrl: string) {
+  const baseUrl = parseBaseUrl(sourceUrl);
+  const info = await scrapeTournamentInfo(externalId, baseUrl);
+  const playerList = await scrapePlayerList(externalId, baseUrl);
+
+  // Scrape standings for points/rank data
+  let standings: StandingsEntry[] = [];
+  try {
+    standings = await scrapeStandings(externalId, undefined, baseUrl);
+  } catch {
+    // Standings may not be available yet
+  }
+
+  // Resolve round count — info page often returns 0
+  let totalRounds = info.rounds;
+  let currentRound = info.currentRound;
+  if (totalRounds === 0 && standings.length > 0 && standings[0].gamesPlayed) {
+    totalRounds = standings[0].gamesPlayed;
+    currentRound = totalRounds;
+  }
+
+  const standingsByName = new Map<string, StandingsEntry>();
+  for (const s of standings) {
+    standingsByName.set(s.name, s);
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.tournament.update({
       where: { id },
       data: {
         name: info.name,
-        currentRound: info.currentRound,
-        status: info.status,
+        rounds: totalRounds,
+        currentRound,
+        status: currentRound >= totalRounds && totalRounds > 0 ? "completed" : info.status,
         lastScrapedAt: new Date(),
       },
     });
@@ -123,6 +150,7 @@ async function legacyRefresh(id: string, externalId: string) {
         }
       }
 
+      const standing = standingsByName.get(p.name);
       await tx.tournamentPlayer.upsert({
         where: {
           tournamentId_playerId: {
@@ -135,15 +163,25 @@ async function legacyRefresh(id: string, externalId: string) {
           playerId: player.id,
           startingRank: p.startingRank,
           startingRating: p.rating,
+          currentRank: standing?.rank ?? null,
+          points: standing?.points ?? 0,
+          performance: standing?.performance ?? null,
+          gamesPlayed: standing?.gamesPlayed ?? 0,
         },
-        update: { startingRating: p.rating },
+        update: {
+          startingRating: p.rating,
+          currentRank: standing?.rank ?? undefined,
+          points: standing?.points ?? undefined,
+          performance: standing?.performance ?? undefined,
+          gamesPlayed: standing?.gamesPlayed ?? undefined,
+        },
       });
     }
 
     await tx.pairing.deleteMany({ where: { tournamentId: id } });
 
-    for (let round = 1; round <= info.currentRound; round++) {
-      const pairings = await scrapePairings(externalId, round);
+    for (let round = 1; round <= currentRound; round++) {
+      const pairings = await scrapePairings(externalId, round, baseUrl);
       for (const pairing of pairings) {
         const white = await tx.player.findFirst({
           where: { name: { contains: pairing.whiteName } },
@@ -160,6 +198,8 @@ async function legacyRefresh(id: string, externalId: string) {
             whitePlayerId: white?.id || null,
             blackPlayerId: black?.id || null,
             result: pairing.result,
+            whiteElo: pairing.whiteRating,
+            blackElo: pairing.blackRating,
           },
         });
       }

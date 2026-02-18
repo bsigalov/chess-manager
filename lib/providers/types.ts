@@ -23,6 +23,10 @@ export interface NormalizedPlayer {
   blitzRating?: number | null;
   country: string | null;
   startingRank?: number;
+  points?: number;
+  currentRank?: number;
+  performance?: number | null;
+  gamesPlayed?: number;
 }
 
 export interface NormalizedPairing {

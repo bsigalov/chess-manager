@@ -1,9 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = request.nextUrl;
+    const q = searchParams.get("q");
+    const status = searchParams.get("status");
+    const country = searchParams.get("country");
+
+    const where: Prisma.TournamentWhereInput = {};
+
+    if (q) {
+      where.name = { contains: q, mode: "insensitive" };
+    }
+    if (status) {
+      where.status = status;
+    }
+    if (country) {
+      where.country = country;
+    }
+
     const tournaments = await prisma.tournament.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       include: {
         _count: { select: { players: true } },

@@ -4,11 +4,12 @@ import { captureSnapshot, getSnapshots } from '@/lib/data-quality/snapshot-servi
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const tournament = await prisma.tournament.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true },
     });
 
@@ -19,7 +20,7 @@ export async function GET(
       );
     }
 
-    const snapshots = await getSnapshots(params.id);
+    const snapshots = await getSnapshots(id);
     return NextResponse.json({ snapshots });
   } catch (error) {
     console.error('Failed to fetch snapshots:', error);
@@ -32,11 +33,12 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const tournament = await prisma.tournament.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, rounds: true },
     });
 
@@ -64,7 +66,7 @@ export async function POST(
       );
     }
 
-    await captureSnapshot(params.id, round);
+    await captureSnapshot(id, round);
 
     return NextResponse.json(
       { success: true, round },

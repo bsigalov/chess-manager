@@ -64,6 +64,90 @@ export function parseRating(str: string): number | null {
   return isNaN(n) || n < 100 || n > 3500 ? null : n;
 }
 
+import type { PlayerRoundResult } from "@/lib/types/tournament";
+
+/**
+ * Parse a single crosstable cell like "13w1", "56b½", "  0  ", "BYE", "+:-", etc.
+ * Returns a PlayerRoundResult (without the round field — caller adds it).
+ */
+export function parseCrosstableCell(
+  cell: string,
+  round: number
+): PlayerRoundResult {
+  const s = cell.trim();
+
+  // Empty cell or unplayed
+  if (!s) {
+    return {
+      round,
+      opponentRank: null,
+      color: null,
+      score: 0,
+      isForfeit: false,
+      isBye: true,
+    };
+  }
+
+  // BYE patterns
+  if (/^bye$/i.test(s) || s === "***") {
+    return {
+      round,
+      opponentRank: null,
+      color: null,
+      score: s === "***" ? 0 : 1,
+      isForfeit: false,
+      isBye: true,
+    };
+  }
+
+  // Forfeit patterns: "+:-" (win by forfeit), "-:+" (loss by forfeit), "-:K" etc.
+  if (/^\+[:\-]/.test(s) || /^-[:\+]/.test(s) || s === "+" || s === "-") {
+    const isWin = s.startsWith("+");
+    return {
+      round,
+      opponentRank: null,
+      color: null,
+      score: isWin ? 1 : 0,
+      isForfeit: true,
+      isBye: false,
+    };
+  }
+
+  // Standard pattern: "56b1", "13w½", "30w0", "4b½"
+  // Format: {opponentRank}{color:w|b}{result:1|0|½}
+  const match = s.match(/^(\d+)\s*([wb])\s*([10½]|1\/2)$/i);
+  if (match) {
+    const opponentRank = parseInt(match[1], 10);
+    const color = match[2].toLowerCase() as "w" | "b";
+    let score: number;
+    if (match[3] === "½" || match[3] === "1/2") {
+      score = 0.5;
+    } else {
+      score = parseInt(match[3], 10);
+    }
+    return { round, opponentRank, color, score, isForfeit: false, isBye: false };
+  }
+
+  // Forfeit with opponent: "56b+" (win by forfeit vs opponent 56)
+  const forfeitMatch = s.match(/^(\d+)\s*([wb])\s*([+\-])$/i);
+  if (forfeitMatch) {
+    const opponentRank = parseInt(forfeitMatch[1], 10);
+    const color = forfeitMatch[2].toLowerCase() as "w" | "b";
+    const score = forfeitMatch[3] === "+" ? 1 : 0;
+    return { round, opponentRank, color, score, isForfeit: true, isBye: false };
+  }
+
+  // Fallback: try to extract just a number (opponent rank) with no result info
+  return {
+    round,
+    opponentRank: null,
+    color: null,
+    score: 0,
+    isForfeit: false,
+    isBye: false,
+  };
+}
+
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 

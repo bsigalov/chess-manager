@@ -1,0 +1,9 @@
+{
+  "projectKey": "TAAMATCL",
+  "cloudId": "1ee0f71d-3a04-4081-8511-186be2e45a4e",
+  "enabled": true,
+  "branchPattern": "^(?:feature|fix|hotfix|chore|docs)/(TAAMATCL-\\d+)",
+  "commitPattern": "TAAMATCL-\\d+:",
+  "timeRounding": 15,
+  "autoCreate": false
+}

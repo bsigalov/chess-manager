@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
   parseTournamentUrl,
+  parseBaseUrl,
   scrapeTournamentInfo,
   scrapePlayerList,
   scrapePairings,
+  scrapeStandings,
+  StandingsEntry,
 } from "@/lib/scrapers/chess-results";
 import type { ImportInput } from "@/lib/providers/types";
 
@@ -88,8 +91,31 @@ async function legacyImport(url: string) {
     return NextResponse.json({ id: existing.id, alreadyExists: true });
   }
 
-  const info = await scrapeTournamentInfo(tournamentId);
-  const playerList = await scrapePlayerList(tournamentId);
+  const baseUrl = parseBaseUrl(url);
+  const info = await scrapeTournamentInfo(tournamentId, baseUrl);
+  const playerList = await scrapePlayerList(tournamentId, baseUrl);
+
+  // Scrape standings for points/rank data
+  let standings: StandingsEntry[] = [];
+  try {
+    standings = await scrapeStandings(tournamentId, undefined, baseUrl);
+  } catch {
+    // Standings may not be available yet
+  }
+
+  // Resolve round count — info page often returns 0
+  let totalRounds = info.rounds;
+  let currentRound = info.currentRound;
+  if (totalRounds === 0 && standings.length > 0 && standings[0].gamesPlayed) {
+    totalRounds = standings[0].gamesPlayed;
+    currentRound = totalRounds;
+  }
+
+  // Build lookup for standings by player name
+  const standingsByName = new Map<string, StandingsEntry>();
+  for (const s of standings) {
+    standingsByName.set(s.name, s);
+  }
 
   const tournament = await prisma.$transaction(async (tx) => {
     const t = await tx.tournament.create({
@@ -101,11 +127,11 @@ async function legacyImport(url: string) {
         country: info.country,
         startDate: info.startDate ? new Date(info.startDate) : new Date(),
         endDate: info.endDate ? new Date(info.endDate) : new Date(),
-        rounds: info.rounds,
-        currentRound: info.currentRound,
+        rounds: totalRounds,
+        currentRound,
         timeControl: info.timeControl,
         tournamentType: info.tournamentType,
-        status: info.status,
+        status: currentRound >= totalRounds && totalRounds > 0 ? "completed" : info.status,
         sourceUrl: url,
         lastScrapedAt: new Date(),
       },
@@ -142,18 +168,23 @@ async function legacyImport(url: string) {
         });
       }
 
+      const standing = standingsByName.get(p.name);
       await tx.tournamentPlayer.create({
         data: {
           tournamentId: t.id,
           playerId: player.id,
           startingRank: p.startingRank,
           startingRating: p.rating,
+          currentRank: standing?.rank ?? null,
+          points: standing?.points ?? 0,
+          performance: standing?.performance ?? null,
+          gamesPlayed: standing?.gamesPlayed ?? 0,
         },
       });
     }
 
-    for (let round = 1; round <= info.currentRound; round++) {
-      const pairings = await scrapePairings(tournamentId, round);
+    for (let round = 1; round <= currentRound; round++) {
+      const pairings = await scrapePairings(tournamentId, round, baseUrl);
       for (const pairing of pairings) {
         const white = await tx.player.findFirst({
           where: { name: { contains: pairing.whiteName } },
@@ -170,6 +201,8 @@ async function legacyImport(url: string) {
             whitePlayerId: white?.id || null,
             blackPlayerId: black?.id || null,
             result: pairing.result,
+            whiteElo: pairing.whiteRating,
+            blackElo: pairing.blackRating,
           },
         });
       }

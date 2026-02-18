@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useSession } from "next-auth/react";
-import { Trophy, Sun, Moon, Menu, X, LogIn } from "lucide-react";
+import { Trophy, Sun, Moon, Menu, X, LogIn, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/auth/user-menu";
+import { NotificationBell } from "@/components/features/notification-bell";
+import { FavoritesDropdown } from "@/components/features/favorites-dropdown";
 import { useState } from "react";
 
 export function Header() {
@@ -14,7 +16,7 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60">
       <div className="container flex h-14 items-center px-4">
         <Link href="/" className="flex items-center gap-2 font-bold text-lg">
           <Trophy className="h-5 w-5" />
@@ -29,6 +31,20 @@ export function Header() {
           >
             Tournaments
           </Link>
+          <Link
+            href="/players"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Players
+          </Link>
+          {session?.user && (
+            <Link
+              href="/dashboard"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Dashboard
+            </Link>
+          )}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
@@ -42,11 +58,15 @@ export function Header() {
             <span className="sr-only">Toggle theme</span>
           </Button>
 
-          {/* Auth: User menu or sign-in button */}
+          {/* Auth: notifications + user menu or sign-in button */}
           {status !== "loading" && (
             <>
               {session?.user ? (
-                <UserMenu />
+                <>
+                  <FavoritesDropdown />
+                  <NotificationBell />
+                  <UserMenu />
+                </>
               ) : (
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/auth/signin">
@@ -76,18 +96,43 @@ export function Header() {
 
       {/* Mobile nav */}
       {mobileOpen && (
-        <nav className="md:hidden border-t p-4">
+        <nav className="md:hidden border-t p-4 space-y-1">
           <Link
             href="/tournaments"
-            className="block py-2 text-sm"
+            className="block py-2 text-sm hover:text-foreground transition-colors"
             onClick={() => setMobileOpen(false)}
           >
             Tournaments
           </Link>
+          <Link
+            href="/players"
+            className="block py-2 text-sm hover:text-foreground transition-colors"
+            onClick={() => setMobileOpen(false)}
+          >
+            Players
+          </Link>
+          {session?.user && (
+            <>
+              <Link
+                href="/dashboard"
+                className="block py-2 text-sm hover:text-foreground transition-colors"
+                onClick={() => setMobileOpen(false)}
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/settings"
+                className="block py-2 text-sm hover:text-foreground transition-colors"
+                onClick={() => setMobileOpen(false)}
+              >
+                Settings
+              </Link>
+            </>
+          )}
           {!session?.user && (
             <Link
               href="/auth/signin"
-              className="block py-2 text-sm"
+              className="block py-2 text-sm hover:text-foreground transition-colors"
               onClick={() => setMobileOpen(false)}
             >
               Sign in

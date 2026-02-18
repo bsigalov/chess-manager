@@ -102,10 +102,18 @@ export async function upsertTournament(
         playerId: match.id,
         startingRank: normalizedPlayer.startingRank ?? null,
         startingRating: normalizedPlayer.rating,
+        currentRank: normalizedPlayer.currentRank ?? null,
+        points: normalizedPlayer.points ?? 0,
+        performance: normalizedPlayer.performance ?? null,
+        gamesPlayed: normalizedPlayer.gamesPlayed ?? 0,
       },
       update: {
         startingRank: normalizedPlayer.startingRank ?? undefined,
         startingRating: normalizedPlayer.rating ?? undefined,
+        currentRank: normalizedPlayer.currentRank ?? undefined,
+        points: normalizedPlayer.points ?? undefined,
+        performance: normalizedPlayer.performance ?? undefined,
+        gamesPlayed: normalizedPlayer.gamesPlayed ?? undefined,
       },
     });
   }

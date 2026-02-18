@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Header } from "@/components/layout/header";
+import { FollowedPlayersProvider } from "@/components/providers/followed-players-provider";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -22,11 +23,13 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <AuthSessionProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <Header />
-            <main>{children}</main>
-            <Toaster />
-          </ThemeProvider>
+          <FollowedPlayersProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+              <Header />
+              <main>{children}</main>
+              <Toaster />
+            </ThemeProvider>
+          </FollowedPlayersProvider>
         </AuthSessionProvider>
       </body>
     </html>
