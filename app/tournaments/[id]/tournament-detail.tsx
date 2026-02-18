@@ -68,8 +68,10 @@ interface TournamentData {
       board: number;
       whitePlayerId: string | null;
       whiteName: string;
+      whiteTitle?: string | null;
       blackPlayerId: string | null;
       blackName: string;
+      blackTitle?: string | null;
       whiteRating: number | null;
       blackRating: number | null;
       result: string | null;
