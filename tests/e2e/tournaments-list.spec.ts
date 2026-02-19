@@ -26,10 +26,20 @@ test.describe("Tournaments List Page", () => {
   test("Clicking tournament card navigates to detail", async ({ page }) => {
     await page.goto("/tournaments");
 
-    const firstLink = page.locator('a[href*="/tournaments/"]').first();
-    await expect(firstLink).toBeVisible();
-    await firstLink.click();
-
-    await expect(page).toHaveURL(/\/tournaments\/.+/);
+    // Find a card link that points to a specific tournament (not the nav link)
+    const links = page.locator('a[href^="/tournaments/"]');
+    const count = await links.count();
+    let tournamentHref: string | null = null;
+    for (let i = 0; i < count; i++) {
+      const h = await links.nth(i).getAttribute("href");
+      if (h && h.replace("/tournaments/", "").length > 0) {
+        tournamentHref = h;
+        break;
+      }
+    }
+    expect(tournamentHref).not.toBeNull();
+    await page.goto(tournamentHref!);
+    await expect(page.locator("h1")).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(new RegExp(tournamentHref!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 });

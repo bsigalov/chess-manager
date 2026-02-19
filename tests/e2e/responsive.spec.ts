@@ -50,17 +50,10 @@ test.describe("Responsive & Mobile Layout", () => {
   });
 
   test("Tournament detail works on mobile", async ({ page }) => {
-    await page.goto("/tournaments");
-
-    const link = page.locator('a[href*="/tournaments/"]').first();
-    const hasLink = await link.isVisible().catch(() => false);
-    if (hasLink) {
-      await link.click();
-      await expect(page).toHaveURL(/\/tournaments\/.+/);
-
-      // Tabs should still be visible
-      await expect(page.getByRole("tab", { name: "Standings" })).toBeVisible();
-      await expect(page.getByRole("tab", { name: "Pairings" })).toBeVisible();
-    }
+    const { TOURNAMENT_URL } = await import("./fixtures");
+    await page.goto(TOURNAMENT_URL);
+    await expect(page.locator("h1")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("tab", { name: "Standings" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Pairings" })).toBeVisible();
   });
 });

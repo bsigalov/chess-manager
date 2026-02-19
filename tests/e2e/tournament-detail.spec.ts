@@ -1,19 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { TOURNAMENT_URL } from "./fixtures";
 
-// Helper: navigate to the first available tournament
+// Helper: navigate directly to a known tournament detail page
 async function goToTournament(page: import("@playwright/test").Page) {
-  await page.goto("/tournaments");
-  await page.waitForLoadState("domcontentloaded");
-  // Click a tournament card link - use direct navigation via href
-  const link = page.locator('a[href*="/tournaments/"]').filter({ hasNotText: /^Tournaments$/ }).first();
-  await expect(link).toBeVisible({ timeout: 10000 });
-  const href = await link.getAttribute("href");
-  if (href) {
-    await page.goto(href, { waitUntil: "commit", timeout: 60000 });
-  } else {
-    await link.click();
-  }
-  await expect(page).toHaveURL(/\/tournaments\/.+/, { timeout: 10000 });
+  await page.goto(TOURNAMENT_URL);
+  await expect(page.locator("h1")).toBeVisible({ timeout: 15000 });
 }
 
 test.describe("Tournament Detail Page", () => {
