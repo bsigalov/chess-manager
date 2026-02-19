@@ -294,7 +294,13 @@ export function PlayerTournamentView({
       </div>
 
       {/* Tab content */}
-      {activeTab === "games" && <GamesTab games={games} />}
+      {activeTab === "games" && (
+        <GamesTab
+          games={games}
+          tournamentId={tournamentId}
+          crosstable={crosstable}
+        />
+      )}
       {activeTab === "rating" && (
         <RatingTab
           ratingProgression={ratingProgression}
@@ -323,9 +329,15 @@ export function PlayerTournamentView({
 
 function GamesTab({
   games,
+  tournamentId,
+  crosstable,
 }: {
   games: PlayerTournamentViewProps["games"];
+  tournamentId: string;
+  crosstable: PlayerTournamentViewProps["crosstable"];
 }) {
+  const opponentRankByName = new Map(crosstable.map((e) => [e.name, e.startingRank]));
+
   return (
     <div className="rounded-md border overflow-x-auto">
       <table className="w-full text-sm">
@@ -360,9 +372,19 @@ function GamesTab({
               <td className="px-3 py-2">
                 {game.isBye ? (
                   <span>BYE</span>
-                ) : (
-                  <span>{game.opponentName}</span>
-                )}
+                ) : (() => {
+                  const rank = opponentRankByName.get(game.opponentName);
+                  return rank ? (
+                    <Link
+                      href={`/tournaments/${tournamentId}/players/${rank}`}
+                      className="hover:underline"
+                    >
+                      {game.opponentName}
+                    </Link>
+                  ) : (
+                    <span>{game.opponentName}</span>
+                  );
+                })()}
                 {game.isForfeit && (
                   <span className="ml-1.5 text-xs text-muted-foreground">
                     (forfeit)
