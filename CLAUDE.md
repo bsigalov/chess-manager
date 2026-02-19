@@ -93,6 +93,28 @@ chess-manager/
 7. **Search & Filter**: Advanced search with filters
 8. **Analytics**: Performance calculations and statistics
 
+## Testing Requirements (MANDATORY)
+
+On **every code change**, before committing:
+
+1. **Run unit tests**: `npm test` — must pass 100%
+2. **Run affected e2e tests**: `npm run test:e2e -- --grep "<affected area>"` for the changed feature
+3. **Run full e2e sanity**: `npm run test:e2e` — must pass 100%
+4. **Add e2e tests** for any new UI flows, navigation, or user-visible behavior
+
+**E2E test files by area:**
+- Navigation/layout → `tests/e2e/navigation.spec.ts`
+- Tournament list → `tests/e2e/tournaments-list.spec.ts`
+- Tournament detail (tabs, standings, pairings) → `tests/e2e/tournament-detail.spec.ts`
+- Tournament import → `tests/e2e/tournament-import.spec.ts`
+- Players list + search → `tests/e2e/players.spec.ts`
+- Player tournament page (tabs, links, stats) → `tests/e2e/player-tournament-page.spec.ts`
+- Auth pages → `tests/e2e/auth-pages.spec.ts`
+- API endpoints → `tests/e2e/api-endpoints.spec.ts`
+- Responsive/mobile → `tests/e2e/responsive.spec.ts`
+
+**Never merge with failing tests.**
+
 ## Development Workflow
 
 1. **Feature Development**:
