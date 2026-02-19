@@ -183,6 +183,29 @@ export function PlayerProfile({
         </div>
         <div className="flex items-center gap-2">
           <FollowButton playerId={player.id} initialFollowed={isFollowing} />
+          {(() => {
+            const params = new URLSearchParams();
+            if (player.name.includes(", ")) {
+              const [last, first] = player.name.split(", ");
+              if (last) params.set("lastName", last);
+              if (first) params.set("firstName", first);
+            } else {
+              const parts = player.name.trim().split(" ");
+              const last = parts[parts.length - 1];
+              const first = parts.slice(0, -1).join(" ");
+              if (last) params.set("lastName", last);
+              if (first) params.set("firstName", first);
+            }
+            if (player.fideId) params.set("fideId", player.fideId);
+            return (
+              <Link
+                href={`/players/search?${params.toString()}`}
+                className="inline-flex items-center gap-1 text-sm border rounded-md px-3 py-1.5 hover:bg-accent transition-colors"
+              >
+                Find on chess-results.com
+              </Link>
+            );
+          })()}
           {!player.isClaimed && !claimStatus && session?.user && (
             <Button
               variant="outline"
