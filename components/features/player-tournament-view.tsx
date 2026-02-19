@@ -77,7 +77,7 @@ interface PlayerTournamentViewProps {
   totalRounds: number;
 }
 
-type TabId = "games" | "rating" | "position";
+type TabId = "games" | "rating" | "position" | "h2h";
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -149,6 +149,7 @@ export function PlayerTournamentView({
     { id: "games", label: "Games" },
     { id: "rating", label: "Rating" },
     { id: "position", label: "Position" },
+    { id: "h2h" as const, label: "H2H" },
   ];
 
   return (
@@ -299,6 +300,7 @@ export function PlayerTournamentView({
       {activeTab === "position" && (
         <PositionTab rankProgression={rankProgression} />
       )}
+      {activeTab === "h2h" && <H2HTab games={games} />}
     </div>
   );
 }
@@ -513,6 +515,68 @@ function RatingTab({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ─── H2H Tab ────────────────────────────────────────────
+
+function H2HTab({
+  games,
+}: {
+  games: PlayerTournamentViewProps["games"];
+}) {
+  // Group by opponent name
+  const byOpponent = new Map<string, { wins: number; draws: number; losses: number; rating: number | null }>();
+
+  for (const g of games) {
+    if (g.isBye) continue;
+    const key = g.opponentName;
+    const prev = byOpponent.get(key) ?? { wins: 0, draws: 0, losses: 0, rating: g.opponentRating };
+    byOpponent.set(key, {
+      wins: prev.wins + (g.result === 1 ? 1 : 0),
+      draws: prev.draws + (g.result === 0.5 ? 1 : 0),
+      losses: prev.losses + (g.result === 0 ? 1 : 0),
+      rating: g.opponentRating ?? prev.rating,
+    });
+  }
+
+  const rows = [...byOpponent.entries()].sort((a, b) => (b[1].rating ?? 0) - (a[1].rating ?? 0));
+
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground py-4 text-center">No games played yet.</p>;
+  }
+
+  return (
+    <div className="rounded-md border overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/50 text-muted-foreground text-xs uppercase tracking-wide">
+            <th className="px-3 py-2 text-left">Opponent</th>
+            <th className="px-3 py-2 text-right">Rating</th>
+            <th className="px-3 py-2 text-center text-green-600">W</th>
+            <th className="px-3 py-2 text-center text-amber-600">D</th>
+            <th className="px-3 py-2 text-center text-red-600">L</th>
+            <th className="px-3 py-2 text-right">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([name, rec]) => {
+            const total = rec.wins + rec.draws + rec.losses;
+            const score = rec.wins + rec.draws * 0.5;
+            return (
+              <tr key={name} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <td className="px-3 py-2 font-medium">{name}</td>
+                <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">{rec.rating ?? "—"}</td>
+                <td className="px-3 py-2 text-center font-semibold text-green-600 tabular-nums">{rec.wins}</td>
+                <td className="px-3 py-2 text-center font-semibold text-amber-600 tabular-nums">{rec.draws}</td>
+                <td className="px-3 py-2 text-center font-semibold text-red-600 tabular-nums">{rec.losses}</td>
+                <td className="px-3 py-2 text-right font-semibold tabular-nums">{score}/{total}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
