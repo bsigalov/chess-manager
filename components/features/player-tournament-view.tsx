@@ -571,7 +571,7 @@ function H2HTab({
                 <td className="px-3 py-2 text-center font-semibold text-green-600 tabular-nums">{rec.wins}</td>
                 <td className="px-3 py-2 text-center font-semibold text-amber-600 tabular-nums">{rec.draws}</td>
                 <td className="px-3 py-2 text-center font-semibold text-red-600 tabular-nums">{rec.losses}</td>
-                <td className="px-3 py-2 text-right font-semibold tabular-nums">{score}/{total}</td>
+                <td className="px-3 py-2 text-right font-semibold tabular-nums">{score % 1 === 0 ? score : score.toFixed(1)}/{total}</td>
               </tr>
             );
           })}
