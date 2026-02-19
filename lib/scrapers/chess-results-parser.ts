@@ -151,8 +151,11 @@ export function parseCrosstableCell(
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-export async function fetchPage(url: string): Promise<string> {
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+export async function fetchPage(url: string, options?: RequestInit): Promise<string> {
+  const res = await fetch(url, {
+    ...options,
+    headers: { "User-Agent": USER_AGENT, ...(options?.headers as Record<string, string> ?? {}) },
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
   return res.text();
 }
