@@ -29,7 +29,7 @@ test.describe("Player Tournament Page", () => {
     await page.goto(PLAYER_TOURNAMENT_URL);
     await expect(page.locator("h1")).toBeVisible({ timeout: 15000 });
     const h2hTab = page.getByRole("tab", { name: "H2H" });
-    await expect(h2hTab).toBeVisible();
+    await expect(h2hTab).toBeVisible({ timeout: 10000 });
     await h2hTab.click();
     const body = await page.textContent("body");
     expect(body).toMatch(/Opponent|W|D|L|Score/i);

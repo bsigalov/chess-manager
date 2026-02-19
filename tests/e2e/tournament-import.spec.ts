@@ -183,8 +183,8 @@ test.describe.serial("Tournament Import & Detail Flow", () => {
 
     await refreshButton.click();
 
-    // Verify refresh completes — button re-enables after loading
-    await expect(refreshButton).toBeEnabled({ timeout: 45_000 });
+    // Verify refresh completes — button re-enables after loading (live scrape can take time)
+    await expect(refreshButton).toBeEnabled({ timeout: 90_000 });
 
     // A toast may appear (success or error) — check if present but don't fail if not
     const toast = page.locator("[data-sonner-toast]");
