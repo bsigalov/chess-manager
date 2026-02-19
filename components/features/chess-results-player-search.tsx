@@ -37,12 +37,11 @@ export function ChessResultsPlayerSearch() {
     setWizard({ state: "searching" });
     setSelectedIndex(null);
     try {
-      const params = new URLSearchParams();
-      if (ln) params.set("lastName", ln);
-      if (fn) params.set("firstName", fn);
-      if (fid) params.set("fideId", fid);
-
-      const res = await fetch(`/api/players/chess-results-search?${params.toString()}`);
+      const res = await fetch("/api/players/chess-results-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lastName: ln || undefined, firstName: fn || undefined, fideId: fid || undefined }),
+      });
       const data = await res.json();
 
       if (!res.ok) {
