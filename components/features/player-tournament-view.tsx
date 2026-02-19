@@ -17,6 +17,7 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { FollowButton } from "@/components/features/follow-button";
+import { WhatIfPanel } from "@/components/features/what-if-panel";
 
 ChartJS.register(
   CategoryScale,
@@ -77,7 +78,7 @@ interface PlayerTournamentViewProps {
   totalRounds: number;
 }
 
-type TabId = "games" | "rating" | "position" | "h2h";
+type TabId = "games" | "rating" | "position" | "h2h" | "whatif";
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -150,6 +151,7 @@ export function PlayerTournamentView({
     { id: "rating", label: "Rating" },
     { id: "position", label: "Position" },
     { id: "h2h" as const, label: "H2H" },
+    { id: "whatif" as const, label: "What If" },
   ];
 
   return (
@@ -301,6 +303,13 @@ export function PlayerTournamentView({
         <PositionTab rankProgression={rankProgression} />
       )}
       {activeTab === "h2h" && <H2HTab games={games} />}
+      {activeTab === "whatif" && (
+        <WhatIfPanel
+          tournamentId={tournamentId}
+          crosstable={crosstable}
+          totalRounds={totalRounds}
+        />
+      )}
     </div>
   );
 }
