@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import type { CrosstableEntry } from "@/lib/types/tournament";
 import type { ChartOptions, TooltipItem } from "chart.js";
 import {
   Chart as ChartJS,
@@ -71,6 +72,8 @@ interface PlayerTournamentViewProps {
     rank: number;
     points: number;
   }[];
+  crosstable: CrosstableEntry[];
+  totalRounds: number;
 }
 
 type TabId = "games" | "rating" | "position";
@@ -107,6 +110,8 @@ export function PlayerTournamentView({
   games,
   ratingProgression,
   rankProgression,
+  crosstable: _crosstable,
+  totalRounds: _totalRounds,
 }: PlayerTournamentViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>("games");
 
