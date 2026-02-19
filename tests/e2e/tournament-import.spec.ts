@@ -148,8 +148,8 @@ test.describe.serial("Tournament Import & Detail Flow", () => {
     await expect(pairingsTab).toBeVisible();
     await pairingsTab.click();
 
-    // Wait for pairings content
-    const pairingsPanel = page.getByRole("tabpanel");
+    // Wait for pairings content — use :visible to avoid matching all Shadcn tabpanels
+    const pairingsPanel = page.locator('[role="tabpanel"]:visible');
     await expect(pairingsPanel).toBeVisible({ timeout: 10_000 });
 
     // Wait for round 1 button (loaded client-side) or pairings empty state
