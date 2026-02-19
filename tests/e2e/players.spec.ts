@@ -84,6 +84,66 @@ test.describe("Players List Page", () => {
     const headingText = await heading.textContent();
     expect(headingText).toContain(playerName!.trim());
   });
+
+  test("Search filters players by name", async ({ page }) => {
+    await page.goto("/players");
+    const input = page.locator('input[placeholder*="Search"]');
+    await expect(input).toBeVisible();
+
+    // Get initial count
+    const table = page.locator("table");
+    await expect(table).toBeVisible();
+
+    // Get the first player name to search for
+    const firstPlayerLink = table.locator('tbody tr').first().locator('a').first();
+    await expect(firstPlayerLink).toBeVisible();
+    const firstPlayerName = await firstPlayerLink.textContent();
+    const searchTerm = firstPlayerName!.trim().split(" ")[0];
+
+    // Type a search query
+    await input.fill(searchTerm);
+    await page.waitForTimeout(100); // React state update
+
+    const rows = table.locator("tbody tr");
+    const count = await rows.count();
+    // Should filter to some results
+    expect(count).toBeGreaterThan(0);
+
+    // Result should contain the search term
+    const body = await page.textContent("body");
+    expect(body).toContain(searchTerm);
+  });
+
+  test("Search shows 'X of Y players' when filtering", async ({ page }) => {
+    await page.goto("/players");
+    const input = page.locator('input[placeholder*="Search"]');
+    await expect(input).toBeVisible();
+
+    // Get the first player name to search for
+    const table = page.locator("table");
+    await expect(table).toBeVisible();
+    const firstPlayerLink = table.locator('tbody tr').first().locator('a').first();
+    await expect(firstPlayerLink).toBeVisible();
+    const firstPlayerName = await firstPlayerLink.textContent();
+    const searchTerm = firstPlayerName!.trim().split(" ")[0];
+
+    await input.fill(searchTerm);
+    await page.waitForTimeout(100);
+
+    const body = await page.textContent("body");
+    expect(body).toMatch(/\d+ of \d+ players/i);
+  });
+
+  test("Search with no results shows empty state", async ({ page }) => {
+    await page.goto("/players");
+    const input = page.locator('input[placeholder*="Search"]');
+    await expect(input).toBeVisible();
+    await input.fill("zzzznonexistentplayer9999");
+    await page.waitForTimeout(100);
+
+    const body = await page.textContent("body");
+    expect(body).toMatch(/No players match/i);
+  });
 });
 
 test.describe("Player Detail Page", () => {
