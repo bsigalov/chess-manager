@@ -393,7 +393,7 @@ export function TournamentDetail({
                       <TableCell className="tabular-nums">{entry.rank}</TableCell>
                       <TableCell>
                         <Link
-                          href={`/tournaments/${tournament.id}/players/${entry.playerId}`}
+                          href={`/tournaments/${tournament.id}/players/${entry.rank}`}
                           className="text-primary hover:underline font-medium"
                         >
                           {entry.name}
