@@ -121,11 +121,12 @@ test.describe("Tournament Detail Page", () => {
     await goToTournament(page);
     await page.getByRole("tab", { name: "Pairings" }).click();
 
-    const panel = page.getByRole("tabpanel");
+    const panel = page.locator('[role="tabpanel"]:visible');
+    await expect(panel).toBeVisible({ timeout: 10000 });
     const round1Btn = panel.getByRole("button", { name: "1", exact: true });
-    const hasRound1 = await round1Btn.isVisible({ timeout: 10000 }).catch(() => false);
-    if (!hasRound1) return; // No pairings available
+    if (!await round1Btn.isVisible({ timeout: 10000 }).catch(() => false)) return;
     await round1Btn.click();
+    await page.waitForTimeout(300);
 
     // Find a player link in pairings
     const playerLink = panel.locator('a[href*="/players/"]').first();
