@@ -21,6 +21,17 @@ function makeRequest(body: object) {
   );
 }
 
+function makeRawRequest(body: string) {
+  return new NextRequest(
+    "http://localhost/api/players/chess-results-search",
+    {
+      method: "POST",
+      body,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+}
+
 describe("POST /api/players/chess-results-search", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -80,6 +91,14 @@ describe("POST /api/players/chess-results-search", () => {
       firstName: "Magnus",
       fideId: "1503014",
     });
+  });
+
+  it("returns 400 when body is malformed JSON", async () => {
+    const req = makeRawRequest("{not valid json");
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toBe("Invalid request body");
   });
 
   it("returns 502 when scraper throws", async () => {
