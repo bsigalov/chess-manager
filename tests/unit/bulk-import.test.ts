@@ -79,7 +79,7 @@ describe("POST /api/players/bulk-import", () => {
 
     // processImportJob should be called fire-and-forget (not awaited in test but still called)
     // Give microtasks a chance to flush
-    await Promise.resolve();
+    await new Promise(resolve => setImmediate(resolve));
     expect(mockProcessImportJob).toHaveBeenCalledWith("job-id-1");
     expect(mockProcessImportJob).toHaveBeenCalledWith("job-id-2");
   });
