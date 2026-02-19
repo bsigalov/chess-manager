@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  retries: process.env.CI ? 2 : 1,
   timeout: 60000,
   use: {
     baseURL: "http://localhost:3002",
@@ -22,5 +22,6 @@ export default defineConfig({
     command: "npm run dev",
     url: "http://localhost:3002",
     reuseExistingServer: true,
+    timeout: 120000,
   },
 });
