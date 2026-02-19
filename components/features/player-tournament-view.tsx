@@ -16,6 +16,7 @@ import {
   Filler,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { FollowButton } from "@/components/features/follow-button";
 
 ChartJS.register(
   CategoryScale,
@@ -97,6 +98,27 @@ function pct(numerator: number, denominator: number): string {
   return Math.round((numerator / denominator) * 100).toString();
 }
 
+function computeStreak(games: { result: number; isBye: boolean }[]): { type: "W" | "D" | "L" | "none"; count: number } {
+  const meaningful = [...games].reverse().filter((g) => !g.isBye);
+  if (meaningful.length === 0) return { type: "none", count: 0 };
+  const first = meaningful[0];
+  const type = first.result === 1 ? "W" : first.result === 0.5 ? "D" : "L";
+  let count = 0;
+  for (const g of meaningful) {
+    const t = g.result === 1 ? "W" : g.result === 0.5 ? "D" : "L";
+    if (t === type) count++;
+    else break;
+  }
+  return { type, count };
+}
+
+function computeBestWin(games: { result: number; opponentRating: number | null; opponentName: string; isBye: boolean }[]): { name: string; rating: number } | null {
+  const wins = games.filter((g) => g.result === 1 && !g.isBye && g.opponentRating !== null);
+  if (wins.length === 0) return null;
+  const best = wins.reduce((a, b) => (b.opponentRating! > a.opponentRating! ? b : a));
+  return { name: best.opponentName, rating: best.opponentRating! };
+}
+
 // ─── Component ──────────────────────────────────────────
 
 export function PlayerTournamentView({
@@ -110,8 +132,8 @@ export function PlayerTournamentView({
   games,
   ratingProgression,
   rankProgression,
-  crosstable: _crosstable,
-  totalRounds: _totalRounds,
+  crosstable,
+  totalRounds,
 }: PlayerTournamentViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>("games");
 
@@ -119,6 +141,9 @@ export function PlayerTournamentView({
   const displayName = playerTitle
     ? `${playerTitle} ${playerName}`
     : playerName;
+
+  const streak = computeStreak(games);
+  const bestWin = computeBestWin(games);
 
   const tabs: { id: TabId; label: string }[] = [
     { id: "games", label: "Games" },
@@ -144,7 +169,15 @@ export function PlayerTournamentView({
       <div className="rounded-lg border bg-card p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-2xl font-bold">{displayName}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold">
+                {playerTitle && <span className="text-muted-foreground mr-1">{playerTitle}</span>}
+                {playerName}
+              </h1>
+              {playerDbId && (
+                <FollowButton playerId={playerDbId} />
+              )}
+            </div>
             {playerRating !== null && (
               <p className="text-muted-foreground">Rating: {playerRating}</p>
             )}
@@ -159,7 +192,7 @@ export function PlayerTournamentView({
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-4 text-sm">
           {/* W/D/L */}
           <div>
             <p className="text-muted-foreground mb-1">Result</p>
@@ -206,6 +239,32 @@ export function PlayerTournamentView({
             <p className="font-medium">
               {stats.performanceRating ?? "N/A"}
             </p>
+          </div>
+
+          {/* Streak */}
+          <div className="text-center">
+            <div className={`text-xl font-bold ${
+              streak.type === "W" ? "text-green-600 dark:text-green-400" :
+              streak.type === "L" ? "text-red-600 dark:text-red-400" :
+              streak.type === "D" ? "text-amber-600 dark:text-amber-400" :
+              ""
+            }`}>
+              {streak.type === "none" ? "—" : `${streak.count}${streak.type}`}
+            </div>
+            <div className="text-xs text-muted-foreground">Streak</div>
+          </div>
+
+          {/* Best Win */}
+          <div className="text-center">
+            <div className="text-xl font-bold">
+              {bestWin ? bestWin.rating : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground">Best Win</div>
+            {bestWin && (
+              <div className="text-xs text-muted-foreground truncate max-w-[80px]" title={bestWin.name}>
+                vs {bestWin.name.split(" ").slice(-1)[0]}
+              </div>
+            )}
           </div>
         </div>
       </div>
