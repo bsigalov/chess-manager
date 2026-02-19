@@ -256,7 +256,7 @@ export default async function PlayerTournamentPage({
       ratingProgression={ratingProgressionProps}
       rankProgression={rankProgression}
       crosstable={crosstable}
-      totalRounds={tournament.rounds ?? totalRounds}
+      totalRounds={tournament.rounds || totalRounds}
     />
     </>
   );
