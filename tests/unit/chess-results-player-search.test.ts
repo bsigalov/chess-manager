@@ -30,6 +30,7 @@ describe("searchChessResultsPlayers", () => {
     expect(results.length).toBeGreaterThan(0);
     expect(results[0]).toMatchObject({
       name: expect.any(String),
+      identNumber: expect.any(String),
       tournaments: expect.any(Array),
     });
     expect(results[0].tournaments.length).toBeGreaterThan(0);

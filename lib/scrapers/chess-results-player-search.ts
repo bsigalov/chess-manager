@@ -50,6 +50,7 @@ function normalizeUrl(href: string): string {
 // Name | ID | FideID | Club/City | FED | Tournament | End-Date | Rk. | Rd. | n
 // No Title column present in this table (confirmed from fixture row 0 header).
 const COL_NAME = 0;
+const COL_IDENT_NUMBER = 1; // chess-results internal player ID
 const COL_FIDE_ID = 2;
 const COL_COUNTRY = 4;
 const COL_TOURNAMENT = 5;
@@ -84,6 +85,7 @@ function parseSearchResults(html: string): ChessResultsPlayer[] {
     const name = cellTexts[COL_NAME];
     if (!name) return;
 
+    const identNumber = cellTexts[COL_IDENT_NUMBER] || null;
     const fideId = cellTexts[COL_FIDE_ID] || null;
     const country = cellTexts[COL_COUNTRY] || null;
     const endDate = cellTexts[COL_END_DATE] || "";
@@ -99,7 +101,7 @@ function parseSearchResults(html: string): ChessResultsPlayer[] {
         country,
         title: null,
         fideId,
-        identNumber: null,
+        identNumber,
         tournaments: [],
       });
     }
