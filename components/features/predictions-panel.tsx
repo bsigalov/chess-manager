@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -28,13 +29,14 @@ interface Simulation {
 interface PredictionsPanelProps {
   simulation: Simulation | null;
   loading?: boolean;
+  tournamentId?: string;
 }
 
 function formatPct(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-export function PredictionsPanel({ simulation, loading }: PredictionsPanelProps) {
+export function PredictionsPanel({ simulation, loading, tournamentId }: PredictionsPanelProps) {
   if (loading) {
     return (
       <div className="space-y-2">
@@ -79,7 +81,16 @@ export function PredictionsPanel({ simulation, loading }: PredictionsPanelProps)
               return (
                 <TableRow key={player.startingRank}>
                   <TableCell className="font-medium truncate">
-                    {player.name}
+                    {tournamentId ? (
+                      <Link
+                        href={`/tournaments/${tournamentId}/players/${player.startingRank}`}
+                        className="hover:underline"
+                      >
+                        {player.name}
+                      </Link>
+                    ) : (
+                      player.name
+                    )}
                   </TableCell>
                   <TableCell
                     className={`text-right font-mono text-sm ${

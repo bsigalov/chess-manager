@@ -331,9 +331,10 @@ export function TournamentDetail({
                 <MagicNumbers
                   crosstable={analytics.crosstable}
                   totalRounds={tournament.rounds}
+                  tournamentId={tournament.id}
                 />
               )}
-              <PredictionsPanel simulation={analytics.simulation} />
+              <PredictionsPanel simulation={analytics.simulation} tournamentId={tournament.id} />
               {analytics.simulation && (
                 <WinProbabilityChart
                   players={analytics.simulation.players}
