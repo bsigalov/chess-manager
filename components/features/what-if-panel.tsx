@@ -72,10 +72,15 @@ export function WhatIfPanel({ tournamentId, crosstable, totalRounds }: WhatIfPan
     ...crosstable.map((p) => p.roundResults.length),
     0
   );
+  const isCompleted = playedRounds >= totalRounds;
   const remainingRounds = Array.from(
     { length: totalRounds - playedRounds },
     (_, i) => playedRounds + i + 1
   );
+  // For completed tournaments, allow overriding any round
+  const availableRounds = isCompleted
+    ? Array.from({ length: totalRounds }, (_, i) => i + 1)
+    : remainingRounds;
 
   const playerMap = new Map(
     crosstable.map((p) => [String(p.startingRank), p])
@@ -158,20 +163,31 @@ export function WhatIfPanel({ tournamentId, crosstable, totalRounds }: WhatIfPan
   return (
     <div className="space-y-6">
       {/* Add hypothetical pairing */}
-      {remainingRounds.length > 0 ? (
+      {availableRounds.length > 0 ? (
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold">Add Hypothetical Result</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">
+              {isCompleted ? "Override Past Result" : "Add Hypothetical Result"}
+            </h3>
+            {isCompleted && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                Completed tournament — select a round to override
+              </span>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Round selector */}
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Round</label>
+              <label className="text-xs text-muted-foreground">
+                {isCompleted ? "Round to override" : "Round"}
+              </label>
               <Select value={selectedRound} onValueChange={setSelectedRound}>
                 <SelectTrigger>
                   <SelectValue placeholder="Round" />
                 </SelectTrigger>
                 <SelectContent>
-                  {remainingRounds.map((r) => (
+                  {availableRounds.map((r) => (
                     <SelectItem key={r} value={String(r)}>
                       Round {r}
                     </SelectItem>
@@ -242,12 +258,12 @@ export function WhatIfPanel({ tournamentId, crosstable, totalRounds }: WhatIfPan
           </div>
 
           <Button size="sm" onClick={handleAdd} disabled={!canAdd}>
-            Add Pairing
+            {isCompleted ? "Override Result" : "Add Pairing"}
           </Button>
         </div>
       ) : (
         <p className="text-muted-foreground text-sm">
-          All rounds have been played. No remaining rounds to simulate.
+          No rounds available.
         </p>
       )}
 
@@ -292,7 +308,9 @@ export function WhatIfPanel({ tournamentId, crosstable, totalRounds }: WhatIfPan
           </div>
 
           <Button onClick={handleSimulate} disabled={simulating}>
-            {simulating ? "Simulating..." : "Simulate"}
+            {simulating
+              ? isCompleted ? "Computing..." : "Simulating..."
+              : isCompleted ? "Recalculate Standings" : "Simulate"}
           </Button>
         </div>
       )}
@@ -316,7 +334,9 @@ export function WhatIfPanel({ tournamentId, crosstable, totalRounds }: WhatIfPan
       {/* Simulation results */}
       {results && !simulating && (
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold">Projected Standings</h3>
+          <h3 className="text-sm font-semibold">
+            {isCompleted ? "Revised Standings" : "Projected Standings"}
+          </h3>
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>

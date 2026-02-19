@@ -29,6 +29,7 @@ export function ChessResultsPlayerSearch() {
   const [players, setPlayers] = useState<ChessResultsPlayer[]>([]);
   const [importedUrls, setImportedUrls] = useState<Set<string>>(new Set());
   const [selectedPlayer, setSelectedPlayer] = useState<ChessResultsPlayer | null>(null);
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
 
   const searching = wizard.state === "searching";
   const importing = wizard.state === "importing";
@@ -106,8 +107,11 @@ export function ChessResultsPlayerSearch() {
       // /check doesn't exist or failed — no badge info, that's fine
     }
 
+    // Pre-select only new (not yet imported) tournaments
+    const newUrls = new Set(player.tournaments.map((t) => t.url).filter((u) => !alreadyImported.has(u)));
     setSelectedPlayer(player);
     setImportedUrls(alreadyImported);
+    setSelectedUrls(newUrls);
     setWizard({ state: "tournaments", player, importedUrls: alreadyImported });
   }
 
@@ -115,7 +119,7 @@ export function ChessResultsPlayerSearch() {
     if (!selectedPlayer) return;
     setWizard({ state: "importing" });
 
-    const tournamentUrls = selectedPlayer.tournaments.map((t) => t.url);
+    const tournamentUrls = Array.from(selectedUrls);
 
     try {
       const res = await fetch("/api/players/bulk-import", {
@@ -150,6 +154,7 @@ export function ChessResultsPlayerSearch() {
     setPlayers([]);
     setSelectedPlayer(null);
     setImportedUrls(new Set());
+    setSelectedUrls(new Set());
   }
 
   // ---- DONE state ----
@@ -173,8 +178,41 @@ export function ChessResultsPlayerSearch() {
   // ---- TOURNAMENTS state ----
   if (wizard.state === "tournaments" || wizard.state === "importing") {
     const player = selectedPlayer!;
+    const sorted = [...player.tournaments].sort((a, b) => {
+      if (!a.endDate) return 1;
+      if (!b.endDate) return -1;
+      return b.endDate.localeCompare(a.endDate);
+    });
     const newCount = player.tournaments.filter((t) => !importedUrls.has(t.url)).length;
     const importedCount = player.tournaments.length - newCount;
+    const selectableUrls = sorted.filter((t) => !importedUrls.has(t.url)).map((t) => t.url);
+    const allSelected = selectableUrls.length > 0 && selectableUrls.every((u) => selectedUrls.has(u));
+    const someSelected = selectableUrls.some((u) => selectedUrls.has(u));
+
+    function toggleAll() {
+      if (allSelected) {
+        setSelectedUrls(new Set());
+      } else {
+        setSelectedUrls(new Set(selectableUrls));
+      }
+    }
+
+    function toggleOne(url: string) {
+      setSelectedUrls((prev) => {
+        const next = new Set(prev);
+        if (next.has(url)) next.delete(url);
+        else next.add(url);
+        return next;
+      });
+    }
+
+    function formatDate(raw: string | null | undefined) {
+      if (!raw) return "—";
+      // raw is like "2025/11/27" or "2025-11-27"
+      const d = new Date(raw.replace(/\//g, "-"));
+      if (isNaN(d.getTime())) return raw;
+      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+    }
 
     return (
       <div className="flex flex-col gap-4">
@@ -199,6 +237,17 @@ export function ChessResultsPlayerSearch() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
+                <th className="px-3 py-2 w-8">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = !allSelected && someSelected; }}
+                    onChange={toggleAll}
+                    disabled={importing || selectableUrls.length === 0}
+                    className="accent-primary"
+                    aria-label="Select all"
+                  />
+                </th>
                 <th className="px-4 py-2 text-left font-medium">Tournament</th>
                 <th className="px-4 py-2 text-left font-medium">End date</th>
                 <th className="px-4 py-2 text-left font-medium">Rounds</th>
@@ -206,12 +255,27 @@ export function ChessResultsPlayerSearch() {
               </tr>
             </thead>
             <tbody>
-              {player.tournaments.map((t) => {
+              {sorted.map((t) => {
                 const already = importedUrls.has(t.url);
+                const checked = selectedUrls.has(t.url);
                 return (
-                  <tr key={t.url} className="border-b hover:bg-muted/30">
+                  <tr
+                    key={t.url}
+                    className={`border-b hover:bg-muted/30 ${!already && !importing ? "cursor-pointer" : ""}`}
+                    onClick={() => !already && !importing && toggleOne(t.url)}
+                  >
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={already || importing}
+                        onChange={() => toggleOne(t.url)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="accent-primary"
+                      />
+                    </td>
                     <td className="px-4 py-2 font-medium">{t.name}</td>
-                    <td className="px-4 py-2 text-muted-foreground">{t.endDate || "—"}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{formatDate(t.endDate)}</td>
                     <td className="px-4 py-2 text-muted-foreground">{t.rounds ?? "—"}</td>
                     <td className="px-4 py-2">
                       {already ? (
@@ -229,7 +293,7 @@ export function ChessResultsPlayerSearch() {
 
         <Button
           onClick={handleImport}
-          disabled={importing || player.tournaments.length === 0}
+          disabled={importing || selectedUrls.size === 0}
           className="self-start"
         >
           {importing ? (
@@ -238,7 +302,7 @@ export function ChessResultsPlayerSearch() {
               Importing...
             </>
           ) : (
-            `Import ${player.tournaments.length} tournament${player.tournaments.length !== 1 ? "s" : ""}`
+            `Import ${selectedUrls.size} tournament${selectedUrls.size !== 1 ? "s" : ""}`
           )}
         </Button>
       </div>
