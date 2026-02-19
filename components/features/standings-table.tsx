@@ -125,8 +125,8 @@ export function StandingsTable({ standings, loading, tournamentId, showOnlyFollo
         </TableHeader>
         <TableBody>
           {sorted.map((entry, i) => {
-            const playerHref = tournamentId && entry.playerId
-              ? `/tournaments/${tournamentId}/players/${entry.playerId}`
+            const playerHref = tournamentId
+              ? `/tournaments/${tournamentId}/players/${entry.rank}`
               : entry.playerId
                 ? `/players/${entry.playerId}`
                 : null;
