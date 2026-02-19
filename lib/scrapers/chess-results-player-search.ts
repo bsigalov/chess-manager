@@ -41,12 +41,14 @@ function normalizeUrl(href: string): string {
   // Decode HTML entities
   const decoded = href.replace(/&amp;/g, "&");
   if (decoded.startsWith("http")) return decoded;
+  if (decoded.startsWith("//")) return `https:${decoded}`;
   const clean = decoded.replace(/^\.\//, "");
   return `${BASE_URL}/${clean}`;
 }
 
 // Column indices based on observed table structure:
 // Name | ID | FideID | Club/City | FED | Tournament | End-Date | Rk. | Rd. | n
+// No Title column present in this table (confirmed from fixture row 0 header).
 const COL_NAME = 0;
 const COL_FIDE_ID = 2;
 const COL_COUNTRY = 4;
@@ -132,7 +134,14 @@ async function fetchWithViewState(params: PlayerSearchParams): Promise<string> {
 }
 
 async function fetchWithPlaywright(params: PlayerSearchParams): Promise<string> {
-  const { chromium } = await import("playwright");
+  let chromium: typeof import("playwright")["chromium"];
+  try {
+    ({ chromium } = await import("playwright"));
+  } catch {
+    throw new Error(
+      "Playwright is not available. Install it with: npx playwright install chromium"
+    );
+  }
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
@@ -161,12 +170,11 @@ export async function searchChessResultsPlayers(
   let html: string;
   try {
     html = await fetchWithViewState(params);
-    return parseSearchResults(html);
   } catch (err) {
     if (err instanceof Error && err.message.includes("At least one")) throw err;
     if (err instanceof Error && err.message.includes("ViewState")) throw err;
     // HTTP fetch failed — fall back to Playwright
     html = await fetchWithPlaywright(params);
-    return parseSearchResults(html);
   }
+  return parseSearchResults(html!);
 }

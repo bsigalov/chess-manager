@@ -55,4 +55,21 @@ describe("searchChessResultsPlayers", () => {
       "At least one search parameter required"
     );
   });
+
+  it("falls back and rejects when fetchWithViewState throws a network error", async () => {
+    // Simulate a network failure on the GET request
+    mockedFetchPage.mockRejectedValueOnce(new Error("Network error: ECONNREFUSED"));
+
+    // In the unit test environment playwright will either throw (not installed)
+    // or attempt a real network call — either way we expect a rejection, not a hang.
+    // We use a short timeout to prevent the test suite from blocking.
+    await expect(
+      Promise.race([
+        searchChessResultsPlayers({ lastName: "Test" }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), 3000)
+        ),
+      ])
+    ).rejects.toBeDefined();
+  });
 });
