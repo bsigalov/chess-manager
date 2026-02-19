@@ -91,6 +91,7 @@ export default async function PlayerTournamentPage({
       externalId: true,
       sourceUrl: true,
       metadata: true,
+      rounds: true,
     },
   });
 
@@ -254,6 +255,8 @@ export default async function PlayerTournamentPage({
       games={gamesWithCumulative}
       ratingProgression={ratingProgressionProps}
       rankProgression={rankProgression}
+      crosstable={crosstable}
+      totalRounds={tournament.rounds || totalRounds}
     />
     </>
   );

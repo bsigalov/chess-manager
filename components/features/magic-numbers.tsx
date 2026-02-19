@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 interface RoundResult {
   round: number;
   opponentRank: number | null;
@@ -20,6 +22,7 @@ interface CrosstableEntry {
 interface MagicNumbersProps {
   crosstable: CrosstableEntry[];
   totalRounds: number;
+  tournamentId?: string;
 }
 
 type Scenario =
@@ -76,13 +79,34 @@ function computeScenarios(crosstable: CrosstableEntry[], totalRounds: number): S
   });
 }
 
-function ScenarioCard({ scenario }: { scenario: Scenario }) {
+function ScenarioCard({
+  scenario,
+  tournamentId,
+  rankByName,
+}: {
+  scenario: Scenario;
+  tournamentId?: string;
+  rankByName?: Map<string, number>;
+}) {
+  const rank = rankByName?.get(scenario.name);
+  const nameEl =
+    tournamentId && rank ? (
+      <Link
+        href={`/tournaments/${tournamentId}/players/${rank}`}
+        className="hover:underline font-semibold"
+      >
+        {scenario.name}
+      </Link>
+    ) : (
+      <span className="font-semibold">{scenario.name}</span>
+    );
+
   switch (scenario.type) {
     case "clinched":
       return (
         <div className="rounded-lg border p-4 bg-green-100 dark:bg-green-950 border-green-300 dark:border-green-800">
-          <p className="font-semibold text-green-800 dark:text-green-200 text-sm">
-            {scenario.name}
+          <p className="text-green-800 dark:text-green-200 text-sm">
+            {nameEl}
           </p>
           <p className="text-green-700 dark:text-green-300 text-xs mt-1">
             Has clinched 1st place with {scenario.points} pts
@@ -93,8 +117,8 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
     case "eliminated":
       return (
         <div className="rounded-lg border p-4 bg-red-100 dark:bg-red-950 border-red-300 dark:border-red-800">
-          <p className="font-semibold text-red-800 dark:text-red-200 text-sm">
-            {scenario.name}
+          <p className="text-red-800 dark:text-red-200 text-sm">
+            {nameEl}
           </p>
           <p className="text-red-700 dark:text-red-300 text-xs mt-1">
             Eliminated &mdash; max {scenario.maxPossible} pts vs leader&apos;s {scenario.leaderPoints}
@@ -105,8 +129,8 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
     case "alive":
       return (
         <div className="rounded-lg border p-4 bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-700">
-          <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
-            {scenario.name}
+          <p className="text-slate-800 dark:text-slate-200 text-sm">
+            {nameEl}
           </p>
           <p className="text-slate-600 dark:text-slate-400 text-xs mt-1">
             {scenario.remaining > 0 ? (
@@ -122,8 +146,9 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
   }
 }
 
-export function MagicNumbers({ crosstable, totalRounds }: MagicNumbersProps) {
+export function MagicNumbers({ crosstable, totalRounds, tournamentId }: MagicNumbersProps) {
   const scenarios = computeScenarios(crosstable, totalRounds);
+  const rankByName = new Map(crosstable.map((e) => [e.name, e.startingRank]));
 
   if (scenarios.length === 0) {
     return (
@@ -136,7 +161,7 @@ export function MagicNumbers({ crosstable, totalRounds }: MagicNumbersProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {scenarios.map((scenario) => (
-        <ScenarioCard key={scenario.name} scenario={scenario} />
+        <ScenarioCard key={scenario.name} scenario={scenario} tournamentId={tournamentId} rankByName={rankByName} />
       ))}
     </div>
   );

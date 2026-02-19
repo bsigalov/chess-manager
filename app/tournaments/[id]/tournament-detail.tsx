@@ -331,9 +331,10 @@ export function TournamentDetail({
                 <MagicNumbers
                   crosstable={analytics.crosstable}
                   totalRounds={tournament.rounds}
+                  tournamentId={tournament.id}
                 />
               )}
-              <PredictionsPanel simulation={analytics.simulation} />
+              <PredictionsPanel simulation={analytics.simulation} tournamentId={tournament.id} />
               {analytics.simulation && (
                 <WinProbabilityChart
                   players={analytics.simulation.players}
@@ -392,7 +393,7 @@ export function TournamentDetail({
                       <TableCell className="tabular-nums">{entry.rank}</TableCell>
                       <TableCell>
                         <Link
-                          href={`/tournaments/${tournament.id}/players/${entry.playerId}`}
+                          href={`/tournaments/${tournament.id}/players/${entry.rank}`}
                           className="text-primary hover:underline font-medium"
                         >
                           {entry.name}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import type { CrosstableEntry } from "@/lib/types/tournament";
 import type { ChartOptions, TooltipItem } from "chart.js";
 import {
   Chart as ChartJS,
@@ -15,6 +16,9 @@ import {
   Filler,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { FollowButton } from "@/components/features/follow-button";
+import { WhatIfPanel } from "@/components/features/what-if-panel";
+import { OpeningStats } from "@/components/features/opening-stats";
 
 ChartJS.register(
   CategoryScale,
@@ -71,9 +75,11 @@ interface PlayerTournamentViewProps {
     rank: number;
     points: number;
   }[];
+  crosstable: CrosstableEntry[];
+  totalRounds: number;
 }
 
-type TabId = "games" | "rating" | "position";
+type TabId = "games" | "rating" | "position" | "h2h" | "whatif" | "openings";
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -94,6 +100,27 @@ function pct(numerator: number, denominator: number): string {
   return Math.round((numerator / denominator) * 100).toString();
 }
 
+function computeStreak(games: { result: number; isBye: boolean }[]): { type: "W" | "D" | "L" | "none"; count: number } {
+  const meaningful = [...games].reverse().filter((g) => !g.isBye);
+  if (meaningful.length === 0) return { type: "none", count: 0 };
+  const first = meaningful[0];
+  const type = first.result === 1 ? "W" : first.result === 0.5 ? "D" : "L";
+  let count = 0;
+  for (const g of meaningful) {
+    const t = g.result === 1 ? "W" : g.result === 0.5 ? "D" : "L";
+    if (t === type) count++;
+    else break;
+  }
+  return { type, count };
+}
+
+function computeBestWin(games: { result: number; opponentRating: number | null; opponentName: string; isBye: boolean }[]): { name: string; rating: number } | null {
+  const wins = games.filter((g) => g.result === 1 && !g.isBye && g.opponentRating !== null);
+  if (wins.length === 0) return null;
+  const best = wins.reduce((a, b) => (b.opponentRating! > a.opponentRating! ? b : a));
+  return { name: best.opponentName, rating: best.opponentRating! };
+}
+
 // ─── Component ──────────────────────────────────────────
 
 export function PlayerTournamentView({
@@ -107,6 +134,8 @@ export function PlayerTournamentView({
   games,
   ratingProgression,
   rankProgression,
+  crosstable,
+  totalRounds,
 }: PlayerTournamentViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>("games");
 
@@ -115,10 +144,16 @@ export function PlayerTournamentView({
     ? `${playerTitle} ${playerName}`
     : playerName;
 
+  const streak = computeStreak(games);
+  const bestWin = computeBestWin(games);
+
   const tabs: { id: TabId; label: string }[] = [
     { id: "games", label: "Games" },
     { id: "rating", label: "Rating" },
     { id: "position", label: "Position" },
+    { id: "h2h" as const, label: "H2H" },
+    { id: "whatif" as const, label: "What If" },
+    ...(playerDbId ? [{ id: "openings" as const, label: "Openings" }] : []),
   ];
 
   return (
@@ -139,7 +174,15 @@ export function PlayerTournamentView({
       <div className="rounded-lg border bg-card p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
-            <h1 className="text-2xl font-bold">{displayName}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold">
+                {playerTitle && <span className="text-muted-foreground mr-1">{playerTitle}</span>}
+                {playerName}
+              </h1>
+              {playerDbId && (
+                <FollowButton playerId={playerDbId} />
+              )}
+            </div>
             {playerRating !== null && (
               <p className="text-muted-foreground">Rating: {playerRating}</p>
             )}
@@ -154,7 +197,7 @@ export function PlayerTournamentView({
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 text-sm">
           {/* W/D/L */}
           <div>
             <p className="text-muted-foreground mb-1">Result</p>
@@ -202,14 +245,42 @@ export function PlayerTournamentView({
               {stats.performanceRating ?? "N/A"}
             </p>
           </div>
+
+          {/* Streak */}
+          <div className="text-center">
+            <div className={`text-xl font-bold ${
+              streak.type === "W" ? "text-green-600 dark:text-green-400" :
+              streak.type === "L" ? "text-red-600 dark:text-red-400" :
+              streak.type === "D" ? "text-amber-600 dark:text-amber-400" :
+              ""
+            }`}>
+              {streak.type === "none" ? "—" : `${streak.count}${streak.type}`}
+            </div>
+            <div className="text-xs text-muted-foreground">Streak</div>
+          </div>
+
+          {/* Best Win */}
+          <div className="text-center">
+            <div className="text-xl font-bold">
+              {bestWin ? bestWin.rating : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground">Best Win</div>
+            {bestWin && (
+              <div className="text-xs text-muted-foreground truncate max-w-[80px]" title={bestWin.name}>
+                vs {bestWin.name.split(" ").slice(-1)[0]}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Tab navigation */}
-      <div className="flex border-b mb-4">
+      <div className="flex border-b mb-4" role="tablist">
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               activeTab === tab.id
@@ -223,7 +294,13 @@ export function PlayerTournamentView({
       </div>
 
       {/* Tab content */}
-      {activeTab === "games" && <GamesTab games={games} />}
+      {activeTab === "games" && (
+        <GamesTab
+          games={games}
+          tournamentId={tournamentId}
+          crosstable={crosstable}
+        />
+      )}
       {activeTab === "rating" && (
         <RatingTab
           ratingProgression={ratingProgression}
@@ -233,6 +310,17 @@ export function PlayerTournamentView({
       {activeTab === "position" && (
         <PositionTab rankProgression={rankProgression} />
       )}
+      {activeTab === "h2h" && <H2HTab games={games} />}
+      {activeTab === "whatif" && (
+        <WhatIfPanel
+          tournamentId={tournamentId}
+          crosstable={crosstable}
+          totalRounds={totalRounds}
+        />
+      )}
+      {activeTab === "openings" && playerDbId && (
+        <OpeningStats playerId={playerDbId} />
+      )}
     </div>
   );
 }
@@ -241,9 +329,15 @@ export function PlayerTournamentView({
 
 function GamesTab({
   games,
+  tournamentId,
+  crosstable,
 }: {
   games: PlayerTournamentViewProps["games"];
+  tournamentId: string;
+  crosstable: PlayerTournamentViewProps["crosstable"];
 }) {
+  const opponentRankByName = new Map(crosstable.map((e) => [e.name, e.startingRank]));
+
   return (
     <div className="rounded-md border overflow-x-auto">
       <table className="w-full text-sm">
@@ -278,9 +372,19 @@ function GamesTab({
               <td className="px-3 py-2">
                 {game.isBye ? (
                   <span>BYE</span>
-                ) : (
-                  <span>{game.opponentName}</span>
-                )}
+                ) : (() => {
+                  const rank = opponentRankByName.get(game.opponentName);
+                  return rank ? (
+                    <Link
+                      href={`/tournaments/${tournamentId}/players/${rank}`}
+                      className="hover:underline"
+                    >
+                      {game.opponentName}
+                    </Link>
+                  ) : (
+                    <span>{game.opponentName}</span>
+                  );
+                })()}
                 {game.isForfeit && (
                   <span className="ml-1.5 text-xs text-muted-foreground">
                     (forfeit)
@@ -447,6 +551,68 @@ function RatingTab({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ─── H2H Tab ────────────────────────────────────────────
+
+function H2HTab({
+  games,
+}: {
+  games: PlayerTournamentViewProps["games"];
+}) {
+  // Group by opponent name
+  const byOpponent = new Map<string, { wins: number; draws: number; losses: number; rating: number | null }>();
+
+  for (const g of games) {
+    if (g.isBye) continue;
+    const key = g.opponentName;
+    const prev = byOpponent.get(key) ?? { wins: 0, draws: 0, losses: 0, rating: g.opponentRating };
+    byOpponent.set(key, {
+      wins: prev.wins + (g.result === 1 ? 1 : 0),
+      draws: prev.draws + (g.result === 0.5 ? 1 : 0),
+      losses: prev.losses + (g.result === 0 ? 1 : 0),
+      rating: g.opponentRating ?? prev.rating,
+    });
+  }
+
+  const rows = [...byOpponent.entries()].sort((a, b) => (b[1].rating ?? 0) - (a[1].rating ?? 0));
+
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground py-4 text-center">No games played yet.</p>;
+  }
+
+  return (
+    <div className="rounded-md border overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/50 text-muted-foreground text-xs uppercase tracking-wide">
+            <th className="px-3 py-2 text-left">Opponent</th>
+            <th className="px-3 py-2 text-right">Rating</th>
+            <th className="px-3 py-2 text-center text-green-600">W</th>
+            <th className="px-3 py-2 text-center text-amber-600">D</th>
+            <th className="px-3 py-2 text-center text-red-600">L</th>
+            <th className="px-3 py-2 text-right">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([name, rec]) => {
+            const total = rec.wins + rec.draws + rec.losses;
+            const score = rec.wins + rec.draws * 0.5;
+            return (
+              <tr key={name} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                <td className="px-3 py-2 font-medium">{name}</td>
+                <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">{rec.rating ?? "—"}</td>
+                <td className="px-3 py-2 text-center font-semibold text-green-600 tabular-nums">{rec.wins}</td>
+                <td className="px-3 py-2 text-center font-semibold text-amber-600 tabular-nums">{rec.draws}</td>
+                <td className="px-3 py-2 text-center font-semibold text-red-600 tabular-nums">{rec.losses}</td>
+                <td className="px-3 py-2 text-right font-semibold tabular-nums">{score % 1 === 0 ? score : score.toFixed(1)}/{total}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
