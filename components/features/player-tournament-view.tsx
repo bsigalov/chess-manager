@@ -18,6 +18,7 @@ import {
 import { Line } from "react-chartjs-2";
 import { FollowButton } from "@/components/features/follow-button";
 import { WhatIfPanel } from "@/components/features/what-if-panel";
+import { OpeningStats } from "@/components/features/opening-stats";
 
 ChartJS.register(
   CategoryScale,
@@ -78,7 +79,7 @@ interface PlayerTournamentViewProps {
   totalRounds: number;
 }
 
-type TabId = "games" | "rating" | "position" | "h2h" | "whatif";
+type TabId = "games" | "rating" | "position" | "h2h" | "whatif" | "openings";
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -152,6 +153,7 @@ export function PlayerTournamentView({
     { id: "position", label: "Position" },
     { id: "h2h" as const, label: "H2H" },
     { id: "whatif" as const, label: "What If" },
+    ...(playerDbId ? [{ id: "openings" as const, label: "Openings" }] : []),
   ];
 
   return (
@@ -309,6 +311,9 @@ export function PlayerTournamentView({
           crosstable={crosstable}
           totalRounds={totalRounds}
         />
+      )}
+      {activeTab === "openings" && playerDbId && (
+        <OpeningStats playerId={playerDbId} />
       )}
     </div>
   );
