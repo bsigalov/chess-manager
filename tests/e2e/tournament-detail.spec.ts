@@ -172,8 +172,11 @@ test.describe("Tournament Detail Page", () => {
     if (hasExport) {
       await exportButton.click();
       // Should show export options - wait for dropdown to appear
-      const csvOption = page.getByRole("button", { name: /CSV/i });
-      await expect(csvOption).toBeVisible({ timeout: 5000 });
+      // Use text locator since buttons contain SVG icons
+      const csvOption = page.locator("button", { hasText: /^CSV$/ }).or(
+        page.locator("button").filter({ hasText: "CSV" })
+      );
+      await expect(csvOption.first()).toBeVisible({ timeout: 5000 });
     }
   });
 
