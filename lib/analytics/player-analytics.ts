@@ -9,6 +9,7 @@ import type {
   GameEntry,
 } from "@/lib/scrapers/chess-org-il";
 import type { DeepPlayerData } from "@/lib/cache/player-cache";
+import { computePredictions } from "./prediction";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -331,8 +332,9 @@ export function computeFullAnalytics(data: DeepPlayerData): PlayerAnalytics {
     ? computeWinRateByBand(games, currentRating)
     : null;
 
-  // Predictions will be computed by prediction.ts module (Task 1.3)
-  // For now, return null placeholders
+  // Predictions
+  const predictions = computePredictions(sortedHistory);
+
   return {
     velocity,
     velocitySeries,
@@ -341,10 +343,10 @@ export function computeFullAnalytics(data: DeepPlayerData): PlayerAnalytics {
     peakDate: peak.date,
     monthsSincePeak: monthsSincePeak(sortedHistory),
 
-    // Predictions (to be implemented in Task 1.3)
-    prediction3mo: null,
-    prediction6mo: null,
-    prediction12mo: null,
+    // Predictions from regression
+    prediction3mo: predictions.prediction3mo,
+    prediction6mo: predictions.prediction6mo,
+    prediction12mo: predictions.prediction12mo,
     milestones,
 
     // Efficiency
