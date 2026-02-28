@@ -21,6 +21,7 @@ test.describe("Players List Page", () => {
     await expect(table).toBeVisible();
 
     const header = table.locator("thead");
+    await expect(header.getByText("#", { exact: true })).toBeVisible();
     await expect(header.getByText("Player", { exact: true })).toBeVisible();
     await expect(header.getByText("Title", { exact: true })).toBeVisible();
     await expect(header.getByText("Rating", { exact: true })).toBeVisible();
@@ -33,8 +34,8 @@ test.describe("Players List Page", () => {
     const table = page.locator("table");
     await expect(table).toBeVisible();
 
-    // Get ratings from first few rows
-    const ratingCells = table.locator("tbody tr td:nth-child(3)");
+    // Get ratings from first few rows (4th column now, after # column)
+    const ratingCells = table.locator("tbody tr td:nth-child(4)");
     const count = Math.min(await ratingCells.count(), 5);
     const ratings: number[] = [];
     for (let i = 0; i < count; i++) {
@@ -51,6 +52,11 @@ test.describe("Players List Page", () => {
 
   test("Shows titled players with badges", async ({ page }) => {
     await page.goto("/players");
+
+    // Wait for table data to load from API
+    const table = page.locator("table");
+    await expect(table).toBeVisible();
+    await expect(table.locator("tbody tr").first()).toBeVisible();
 
     // Should have at least one title badge (IM, FM, GM, etc.)
     const body = await page.textContent("body");
@@ -102,7 +108,9 @@ test.describe("Players List Page", () => {
 
     // Type a search query
     await input.fill(searchTerm);
-    await page.waitForTimeout(100); // React state update
+    // Wait for debounce + API fetch
+    await page.waitForTimeout(500);
+    await expect(table.locator("tbody tr").first()).toBeVisible();
 
     const rows = table.locator("tbody tr");
     const count = await rows.count();
@@ -114,12 +122,12 @@ test.describe("Players List Page", () => {
     expect(body).toContain(searchTerm);
   });
 
-  test("Search shows 'X of Y players' when filtering", async ({ page }) => {
+  test("Search updates player count when filtering", async ({ page }) => {
     await page.goto("/players");
     const input = page.locator('input[placeholder*="Search"]');
     await expect(input).toBeVisible();
 
-    // Get the first player name to search for
+    // Wait for initial table data
     const table = page.locator("table");
     await expect(table).toBeVisible();
     const firstPlayerLink = table.locator('tbody tr').first().locator('a').first();
@@ -128,10 +136,12 @@ test.describe("Players List Page", () => {
     const searchTerm = firstPlayerName!.trim().split(" ")[0];
 
     await input.fill(searchTerm);
-    await page.waitForTimeout(100);
+    // Wait for API debounce + fetch
+    await page.waitForTimeout(500);
+    await expect(table.locator("tbody tr").first()).toBeVisible();
 
     const body = await page.textContent("body");
-    expect(body).toMatch(/\d+ of \d+ players/i);
+    expect(body).toMatch(/\d+\s*players/i);
   });
 
   test("Search with no results shows empty state", async ({ page }) => {
@@ -139,10 +149,8 @@ test.describe("Players List Page", () => {
     const input = page.locator('input[placeholder*="Search"]');
     await expect(input).toBeVisible();
     await input.fill("zzzznonexistentplayer9999");
-    await page.waitForTimeout(100);
-
-    const body = await page.textContent("body");
-    expect(body).toMatch(/No players match/i);
+    // Wait for debounce (300ms) + API fetch
+    await expect(page.getByText(/No players match/i)).toBeVisible({ timeout: 5000 });
   });
 });
 

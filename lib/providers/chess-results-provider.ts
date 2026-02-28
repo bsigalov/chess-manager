@@ -8,6 +8,7 @@ import {
 import {
   parseTournamentUrl,
   parseBaseUrl,
+  parsePersistentParams,
   scrapeTournamentInfo,
   scrapePlayerList,
   scrapePairings,
@@ -66,15 +67,16 @@ export class ChessResultsProvider implements DataProvider {
   async fetchTournament(input: ImportInput): Promise<NormalizedTournament> {
     const tournamentId = this.resolveTournamentId(input);
     const baseUrl = input.url ? parseBaseUrl(input.url) : undefined;
+    const extra = input.url ? parsePersistentParams(input.url) : undefined;
 
-    const info = await scrapeTournamentInfo(tournamentId, baseUrl);
-    const playerEntries = await scrapePlayerList(tournamentId, baseUrl);
+    const info = await scrapeTournamentInfo(tournamentId, baseUrl, extra);
+    const playerEntries = await scrapePlayerList(tournamentId, baseUrl, extra);
 
     // Fetch standings FIRST — the info page often lacks round count,
     // but standings heading has "Final Ranking after N Rounds"
     let standingsEntries: StandingsEntry[] = [];
     try {
-      standingsEntries = await scrapeStandings(tournamentId, undefined, baseUrl);
+      standingsEntries = await scrapeStandings(tournamentId, undefined, baseUrl, extra);
     } catch {
       // Standings may not be available — continue without them
     }
@@ -91,7 +93,7 @@ export class ChessResultsProvider implements DataProvider {
     const allPairings: NormalizedPairing[] = [];
     for (let round = 1; round <= currentRound; round++) {
       try {
-        const roundPairings = await scrapePairings(tournamentId, round, baseUrl);
+        const roundPairings = await scrapePairings(tournamentId, round, baseUrl, extra);
         for (const p of roundPairings) {
           allPairings.push(mapPairing(p, round));
         }
@@ -132,13 +134,14 @@ export class ChessResultsProvider implements DataProvider {
     // the current round's pairings as the most likely source of updates.
     const tournamentId = this.resolveTournamentId(input);
     const baseUrl = input.url ? parseBaseUrl(input.url) : undefined;
-    const info = await scrapeTournamentInfo(tournamentId, baseUrl);
+    const extra = input.url ? parsePersistentParams(input.url) : undefined;
+    const info = await scrapeTournamentInfo(tournamentId, baseUrl, extra);
 
     // Resolve round count — info page often returns 0
     let currentRound = info.currentRound;
     if (currentRound === 0) {
       try {
-        const standings = await scrapeStandings(tournamentId, undefined, baseUrl);
+        const standings = await scrapeStandings(tournamentId, undefined, baseUrl, extra);
         if (standings.length > 0 && standings[0].gamesPlayed) {
           currentRound = standings[0].gamesPlayed;
         }
@@ -150,7 +153,7 @@ export class ChessResultsProvider implements DataProvider {
     const pairings: NormalizedPairing[] = [];
     if (currentRound > 0) {
       try {
-        const roundPairings = await scrapePairings(tournamentId, currentRound, baseUrl);
+        const roundPairings = await scrapePairings(tournamentId, currentRound, baseUrl, extra);
         for (const p of roundPairings) {
           pairings.push(mapPairing(p, currentRound));
         }

@@ -74,6 +74,7 @@ export async function GET(
         startingRank: tp.startingRank,
         currentRank: tp.currentRank,
         startingRating: tp.startingRating,
+        currentRating: tp.currentRating,
         points: tp.points,
         performance: tp.performance,
       })),

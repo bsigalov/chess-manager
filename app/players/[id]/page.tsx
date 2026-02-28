@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
@@ -54,6 +55,7 @@ async function getPlayer(id: string) {
     birthYear: player.birthYear,
     isActive: player.isActive,
     isClaimed: player.claims.length > 0,
+    metadata: player.metadata as Record<string, unknown> | null,
     tournaments: player.tournaments.map((tp) => ({
       tournamentId: tp.tournament.id,
       tournamentName: tp.tournament.name,
@@ -66,6 +68,7 @@ async function getPlayer(id: string) {
       startingRank: tp.startingRank,
       currentRank: tp.currentRank,
       startingRating: tp.startingRating,
+      currentRating: tp.currentRating,
       points: tp.points,
       performance: tp.performance,
     })),
@@ -165,11 +168,13 @@ export default async function PlayerPage({
           ]}
         />
       </div>
-      <PlayerProfile
-        player={player}
-        isFollowing={isFollowing}
-        claimStatus={claimStatus}
-      />
+      <Suspense>
+        <PlayerProfile
+          player={player}
+          isFollowing={isFollowing}
+          claimStatus={claimStatus}
+        />
+      </Suspense>
     </>
   );
 }

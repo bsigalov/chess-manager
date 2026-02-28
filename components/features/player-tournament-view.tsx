@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import type { CrosstableEntry } from "@/lib/types/tournament";
 import type { ChartOptions, TooltipItem } from "chart.js";
@@ -310,7 +310,7 @@ export function PlayerTournamentView({
       {activeTab === "position" && (
         <PositionTab rankProgression={rankProgression} />
       )}
-      {activeTab === "h2h" && <H2HTab games={games} />}
+      {activeTab === "h2h" && <H2HTab playerDbId={playerDbId} />}
       {activeTab === "whatif" && (
         <WhatIfPanel
           tournamentId={tournamentId}
@@ -557,62 +557,121 @@ function RatingTab({
 
 // ─── H2H Tab ────────────────────────────────────────────
 
-function H2HTab({
-  games,
-}: {
-  games: PlayerTournamentViewProps["games"];
-}) {
-  // Group by opponent name
-  const byOpponent = new Map<string, { wins: number; draws: number; losses: number; rating: number | null }>();
+interface H2HOpponent {
+  opponentId: string;
+  opponentName: string;
+  opponentRating: number | null;
+  wins: number;
+  draws: number;
+  losses: number;
+  games: {
+    tournamentId: string;
+    tournamentName: string;
+    round: number;
+    result: number;
+    color: "white" | "black";
+  }[];
+}
 
-  for (const g of games) {
-    if (g.isBye) continue;
-    const key = g.opponentName;
-    const prev = byOpponent.get(key) ?? { wins: 0, draws: 0, losses: 0, rating: g.opponentRating };
-    byOpponent.set(key, {
-      wins: prev.wins + (g.result === 1 ? 1 : 0),
-      draws: prev.draws + (g.result === 0.5 ? 1 : 0),
-      losses: prev.losses + (g.result === 0 ? 1 : 0),
-      rating: g.opponentRating ?? prev.rating,
-    });
+function H2HTab({
+  playerDbId,
+}: {
+  playerDbId: string | null;
+}) {
+  const [opponents, setOpponents] = useState<H2HOpponent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  // Fetch cross-tournament H2H data
+  React.useEffect(() => {
+    if (!playerDbId) {
+      setLoading(false);
+      return;
+    }
+    fetch(`/api/players/${playerDbId}/h2h`)
+      .then((res) => res.json())
+      .then((data) => setOpponents(data.opponents ?? []))
+      .catch(() => setOpponents([]))
+      .finally(() => setLoading(false));
+  }, [playerDbId]);
+
+  if (loading) {
+    return <p className="text-sm text-muted-foreground py-4 text-center">Loading head-to-head data…</p>;
   }
 
-  const rows = [...byOpponent.entries()].sort((a, b) => (b[1].rating ?? 0) - (a[1].rating ?? 0));
-
-  if (rows.length === 0) {
+  if (opponents.length === 0) {
     return <p className="text-sm text-muted-foreground py-4 text-center">No games played yet.</p>;
   }
 
   return (
-    <div className="rounded-md border overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b bg-muted/50 text-muted-foreground text-xs uppercase tracking-wide">
-            <th className="px-3 py-2 text-left">Opponent</th>
-            <th className="px-3 py-2 text-right">Rating</th>
-            <th className="px-3 py-2 text-center text-green-600">W</th>
-            <th className="px-3 py-2 text-center text-amber-600">D</th>
-            <th className="px-3 py-2 text-center text-red-600">L</th>
-            <th className="px-3 py-2 text-right">Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(([name, rec]) => {
-            const total = rec.wins + rec.draws + rec.losses;
-            const score = rec.wins + rec.draws * 0.5;
-            return (
-              <tr key={name} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                <td className="px-3 py-2 font-medium">{name}</td>
-                <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">{rec.rating ?? "—"}</td>
-                <td className="px-3 py-2 text-center font-semibold text-green-600 tabular-nums">{rec.wins}</td>
-                <td className="px-3 py-2 text-center font-semibold text-amber-600 tabular-nums">{rec.draws}</td>
-                <td className="px-3 py-2 text-center font-semibold text-red-600 tabular-nums">{rec.losses}</td>
-                <td className="px-3 py-2 text-right font-semibold tabular-nums">{score % 1 === 0 ? score : score.toFixed(1)}/{total}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground mb-2">
+        Head-to-head records across all tournaments ({opponents.length} opponents)
+      </p>
+      <div className="rounded-md border overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50 text-muted-foreground text-xs uppercase tracking-wide">
+              <th className="px-3 py-2 text-left">Opponent</th>
+              <th className="px-3 py-2 text-right">Rating</th>
+              <th className="px-3 py-2 text-center text-green-600">W</th>
+              <th className="px-3 py-2 text-center text-amber-600">D</th>
+              <th className="px-3 py-2 text-center text-red-600">L</th>
+              <th className="px-3 py-2 text-right">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {opponents.map((opp) => {
+              const total = opp.wins + opp.draws + opp.losses;
+              const score = opp.wins + opp.draws * 0.5;
+              const isExpanded = expanded === opp.opponentId;
+              return (
+                <React.Fragment key={opp.opponentId}>
+                  <tr
+                    className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => setExpanded(isExpanded ? null : opp.opponentId)}
+                  >
+                    <td className="px-3 py-2 font-medium">
+                      <Link href={`/players/${opp.opponentId}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+                        {opp.opponentName}
+                      </Link>
+                      {total > 1 && (
+                        <span className="ml-1 text-xs text-muted-foreground">({total} games)</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">{opp.opponentRating ?? "—"}</td>
+                    <td className="px-3 py-2 text-center font-semibold text-green-600 tabular-nums">{opp.wins}</td>
+                    <td className="px-3 py-2 text-center font-semibold text-amber-600 tabular-nums">{opp.draws}</td>
+                    <td className="px-3 py-2 text-center font-semibold text-red-600 tabular-nums">{opp.losses}</td>
+                    <td className="px-3 py-2 text-right font-semibold tabular-nums">{score % 1 === 0 ? score : score.toFixed(1)}/{total}</td>
+                  </tr>
+                  {isExpanded && opp.games.length > 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-2 bg-muted/20">
+                        <div className="text-xs space-y-1">
+                          {opp.games.map((g, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className={g.result === 1 ? "text-green-600 font-medium" : g.result === 0 ? "text-red-600 font-medium" : "text-amber-600 font-medium"}>
+                                {g.result === 1 ? "W" : g.result === 0 ? "L" : "D"}
+                              </span>
+                              <span className="text-muted-foreground">
+                                R{g.round} ({g.color})
+                              </span>
+                              <Link href={`/tournaments/${g.tournamentId}`} className="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
+                                {g.tournamentName}
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

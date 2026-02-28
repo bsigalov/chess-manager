@@ -1,32 +1,13 @@
-import Link from "next/link";
+import { Suspense } from "react";
 import { prisma } from "@/lib/db";
 import { Users } from "lucide-react";
+import Link from "next/link";
 import { PlayersPageClient } from "@/components/features/players-page-client";
 
-async function getPlayers() {
-  try {
-    return await prisma.player.findMany({
-      orderBy: [{ rating: "desc" }],
-      take: 500,
-      select: {
-        id: true,
-        name: true,
-        title: true,
-        rating: true,
-        country: true,
-        fideId: true,
-        _count: { select: { tournaments: true } },
-      },
-    });
-  } catch {
-    return [];
-  }
-}
-
 export default async function PlayersPage() {
-  const players = await getPlayers();
+  const totalCount = await prisma.player.count().catch(() => 0);
 
-  if (players.length === 0) {
+  if (totalCount === 0) {
     return (
       <div className="container px-4 py-24 flex flex-col items-center text-center gap-4">
         <Users className="h-12 w-12 text-muted-foreground" />
@@ -41,5 +22,9 @@ export default async function PlayersPage() {
     );
   }
 
-  return <PlayersPageClient players={players} />;
+  return (
+    <Suspense>
+      <PlayersPageClient totalCount={totalCount} />
+    </Suspense>
+  );
 }
