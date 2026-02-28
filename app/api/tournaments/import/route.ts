@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   parseTournamentUrl,
   parseBaseUrl,
+  parsePersistentParams,
   scrapeTournamentInfo,
   scrapePlayerList,
   scrapePairings,
@@ -92,13 +93,14 @@ async function legacyImport(url: string) {
   }
 
   const baseUrl = parseBaseUrl(url);
-  const info = await scrapeTournamentInfo(tournamentId, baseUrl);
-  const playerList = await scrapePlayerList(tournamentId, baseUrl);
+  const extraParams = parsePersistentParams(url);
+  const info = await scrapeTournamentInfo(tournamentId, baseUrl, extraParams);
+  const playerList = await scrapePlayerList(tournamentId, baseUrl, extraParams);
 
   // Scrape standings for points/rank data
   let standings: StandingsEntry[] = [];
   try {
-    standings = await scrapeStandings(tournamentId, undefined, baseUrl);
+    standings = await scrapeStandings(tournamentId, undefined, baseUrl, extraParams);
   } catch {
     // Standings may not be available yet
   }
@@ -184,7 +186,7 @@ async function legacyImport(url: string) {
     }
 
     for (let round = 1; round <= currentRound; round++) {
-      const pairings = await scrapePairings(tournamentId, round, baseUrl);
+      const pairings = await scrapePairings(tournamentId, round, baseUrl, extraParams);
       for (const pairing of pairings) {
         const white = await tx.player.findFirst({
           where: { name: { contains: pairing.whiteName } },

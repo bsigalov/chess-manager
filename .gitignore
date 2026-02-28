@@ -28,9 +28,13 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# cache
+/.cache/
+
 # jira autopilot
 .claude/current-task.json
 .claude/jira-session.json
 .claude/jira-sessions/
 .claude/jira-autopilot.local.json
 .claude/jira-autopilot.declined
+scripts/.scrape-progress.json

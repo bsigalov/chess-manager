@@ -33,6 +33,23 @@ export function parseBaseUrl(url: string): string {
   }
 }
 
+/**
+ * Extract persistent query params from the original URL (e.g. SNode=S0 for
+ * multi-tournament pages). These must be forwarded on every request.
+ */
+export function parsePersistentParams(url: string): Record<string, string> {
+  const persistent: Record<string, string> = {};
+  try {
+    const parsed = new URL(url);
+    // SNode selects a specific sub-tournament on multi-tournament pages
+    const snode = parsed.searchParams.get("SNode");
+    if (snode) persistent.SNode = snode;
+  } catch {
+    // ignore
+  }
+  return persistent;
+}
+
 function buildUrl(
   tournamentId: string,
   params: Record<string, string> = {},
@@ -61,9 +78,10 @@ export interface TournamentInfo {
 
 export async function scrapeTournamentInfo(
   tournamentId: string,
-  baseUrl?: string
+  baseUrl?: string,
+  extraParams?: Record<string, string>
 ): Promise<TournamentInfo> {
-  const html = await fetchPage(buildUrl(tournamentId, {}, baseUrl));
+  const html = await fetchPage(buildUrl(tournamentId, { ...extraParams }, baseUrl));
   const $ = cheerio.load(html);
 
   const name =
@@ -127,10 +145,11 @@ export interface PlayerEntry {
 
 export async function scrapePlayerList(
   tournamentId: string,
-  baseUrl?: string
+  baseUrl?: string,
+  extraParams?: Record<string, string>
 ): Promise<PlayerEntry[]> {
   await delay(DELAY_MS);
-  const html = await fetchPage(buildUrl(tournamentId, { art: "0" }, baseUrl));
+  const html = await fetchPage(buildUrl(tournamentId, { ...extraParams, art: "0" }, baseUrl));
   const rows = parseChessResultsTable(html);
 
   const players: PlayerEntry[] = [];
@@ -192,11 +211,12 @@ export interface StandingsEntry {
 export async function scrapeStandings(
   tournamentId: string,
   round?: number,
-  baseUrl?: string
+  baseUrl?: string,
+  extraParams?: Record<string, string>
 ): Promise<StandingsEntry[]> {
   await delay(DELAY_MS);
   // Use art=1 (Final Ranking) — cleaner table than art=4 (crosstable)
-  const params: Record<string, string> = { art: "1" };
+  const params: Record<string, string> = { ...extraParams, art: "1" };
   if (round) params.rd = String(round);
   const html = await fetchPage(buildUrl(tournamentId, params, baseUrl));
 
@@ -324,11 +344,12 @@ function isResultCell(cell: string): boolean {
 export async function scrapePairings(
   tournamentId: string,
   round: number,
-  baseUrl?: string
+  baseUrl?: string,
+  extraParams?: Record<string, string>
 ): Promise<PairingEntry[]> {
   await delay(DELAY_MS);
   const html = await fetchPage(
-    buildUrl(tournamentId, { art: "2", rd: String(round) }, baseUrl)
+    buildUrl(tournamentId, { ...extraParams, art: "2", rd: String(round) }, baseUrl)
   );
   const rows = parseChessResultsTable(html);
 
@@ -421,11 +442,12 @@ function extractPlayerFromCols(cols: string[]): {
  */
 export async function scrapeCrosstable(
   tournamentId: string,
-  baseUrl?: string
+  baseUrl?: string,
+  extraParams?: Record<string, string>
 ): Promise<CrosstableEntry[]> {
   await delay(DELAY_MS);
   const html = await fetchPage(
-    buildUrl(tournamentId, { art: "4" }, baseUrl)
+    buildUrl(tournamentId, { ...extraParams, art: "4" }, baseUrl)
   );
   const rows = parseChessResultsTable(html);
 

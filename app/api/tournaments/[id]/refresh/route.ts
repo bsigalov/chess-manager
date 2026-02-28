@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
   parseBaseUrl,
+  parsePersistentParams,
   scrapeTournamentInfo,
   scrapePlayerList,
   scrapePairings,
@@ -84,13 +85,14 @@ export async function POST(
 
 async function legacyRefresh(id: string, externalId: string, sourceUrl: string) {
   const baseUrl = parseBaseUrl(sourceUrl);
-  const info = await scrapeTournamentInfo(externalId, baseUrl);
-  const playerList = await scrapePlayerList(externalId, baseUrl);
+  const extraParams = parsePersistentParams(sourceUrl);
+  const info = await scrapeTournamentInfo(externalId, baseUrl, extraParams);
+  const playerList = await scrapePlayerList(externalId, baseUrl, extraParams);
 
   // Scrape standings for points/rank data
   let standings: StandingsEntry[] = [];
   try {
-    standings = await scrapeStandings(externalId, undefined, baseUrl);
+    standings = await scrapeStandings(externalId, undefined, baseUrl, extraParams);
   } catch {
     // Standings may not be available yet
   }
@@ -181,7 +183,7 @@ async function legacyRefresh(id: string, externalId: string, sourceUrl: string) 
     await tx.pairing.deleteMany({ where: { tournamentId: id } });
 
     for (let round = 1; round <= currentRound; round++) {
-      const pairings = await scrapePairings(externalId, round, baseUrl);
+      const pairings = await scrapePairings(externalId, round, baseUrl, extraParams);
       for (const pairing of pairings) {
         const white = await tx.player.findFirst({
           where: { name: { contains: pairing.whiteName } },
