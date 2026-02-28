@@ -15,10 +15,12 @@ const publicRoutes = [
 const publicPrefixes = [
   "/tournaments/",
   "/players/",
+  "/clubs/",
   "/auth/",
   "/api/auth",
   "/api/tournaments",
   "/api/players",
+  "/api/clubs",
   "/api/import",
   "/api/events",
   "/_next/",
