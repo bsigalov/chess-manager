@@ -27,7 +27,7 @@ This document tracks implementation progress against the spec plan.
 | ID   | Description                        | Status      | Started    | Completed  | Notes |
 |------|------------------------------------|-------------|------------|------------|-------|
 | 1.1  | Per-Player Deep Cache              | done        | 2026-02-28 | 2026-02-28 |       |
-| 1.2  | Player Analytics Computation       | pending     |            |            |       |
+| 1.2  | Player Analytics Computation       | done        | 2026-02-28 | 2026-02-28 |       |
 | 1.3  | Rating Prediction Module           | pending     |            |            |       |
 | 2.1  | Analytics API Route                | pending     |            |            |       |
 | 2.2  | Deep Scrape API Route              | pending     |            |            |       |
@@ -47,7 +47,7 @@ This document tracks implementation progress against the spec plan.
 
 | Phase | Name                  | Progress | Status      |
 |-------|-----------------------|----------|-------------|
-| 1     | Analytics Engine      | 33%      | in-progress |
+| 1     | Analytics Engine      | 66%      | in-progress |
 | 2     | API Routes            | 0%       | pending     |
 | 3     | Core UI               | 0%       | pending     |
 | 4     | Comparison & Polish   | 0%       | pending     |
